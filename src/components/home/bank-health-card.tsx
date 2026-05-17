@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { CardShell, CardAction } from "./card-shell";
 import { formatLastSync } from "@/lib/formatters";
+import { translateProviderName, useFormatterLabels } from "@/lib/i18n-data";
 import type { HomeBankHealthItem } from "@/lib/types";
 
 interface Props {
@@ -10,15 +12,16 @@ interface Props {
 }
 
 export function BankHealthCard({ items }: Props) {
+  const t = useTranslations("home");
   if (items.length === 0) {
     return (
       <div id="bank-health" className="contents">
         <CardShell
-          label="Bank connections"
-          action={<CardAction href="/settings/bank">Manage →</CardAction>}
+          label={t("bankConnections")}
+          action={<CardAction href="/settings/bank">{t("manage")}</CardAction>}
         >
           <div className="flex flex-1 items-center justify-center py-6 text-sm text-muted-foreground">
-            No banks connected yet.
+            {t("noBanksConnectedYet")}
           </div>
         </CardShell>
       </div>
@@ -28,8 +31,8 @@ export function BankHealthCard({ items }: Props) {
   return (
     <div id="bank-health" className="contents">
       <CardShell
-        label="Bank connections"
-        action={<CardAction href="/settings/bank">Manage →</CardAction>}
+        label={t("bankConnections")}
+        action={<CardAction href="/settings/bank">{t("manage")}</CardAction>}
       >
         <ul className="flex flex-1 flex-col gap-3">
           {items.map((item) => (
@@ -44,7 +47,11 @@ export function BankHealthCard({ items }: Props) {
 }
 
 function Row({ item }: { item: HomeBankHealthItem }) {
-  const { providerName, lastSyncAt, status, errorMessage } = item;
+  const t = useTranslations("home");
+  const tBanks = useTranslations("banks");
+  const labels = useFormatterLabels();
+  const { providerName, lastSyncAt, status, errorMessage, provider } = item;
+  const displayName = translateProviderName(provider, providerName, tBanks);
 
   return (
     <Link
@@ -55,9 +62,9 @@ function Row({ item }: { item: HomeBankHealthItem }) {
       <div className="flex min-w-0 items-center gap-2.5">
         <StatusDot status={status} />
         <div className="min-w-0">
-          <div className="truncate text-sm font-medium">{providerName}</div>
+          <div className="truncate text-sm font-medium">{displayName}</div>
           <div className="text-xs text-muted-foreground">
-            {describeLastSync(lastSyncAt, status)}
+            {describeLastSync(lastSyncAt, status, labels, t)}
           </div>
         </div>
       </div>
@@ -79,14 +86,15 @@ function StatusDot({ status }: { status: HomeBankHealthItem["status"] }) {
 }
 
 function StatusLabel({ status }: { status: HomeBankHealthItem["status"] }) {
+  const t = useTranslations("home");
   const text =
     status === "ok"
-      ? "OK"
+      ? t("statusOk")
       : status === "stale"
-        ? "Stale"
+        ? t("statusStale")
         : status === "error"
-          ? "Error"
-          : "Never synced";
+          ? t("statusError")
+          : t("statusNeverSynced");
   const cls =
     status === "ok"
       ? "text-[var(--status-on-track)]"
@@ -100,8 +108,10 @@ function StatusLabel({ status }: { status: HomeBankHealthItem["status"] }) {
 
 function describeLastSync(
   iso: string | null,
-  status: HomeBankHealthItem["status"]
+  status: HomeBankHealthItem["status"],
+  labels: ReturnType<typeof useFormatterLabels>,
+  t: ReturnType<typeof useTranslations<"home">>,
 ): string {
-  if (!iso) return status === "error" ? "Last attempt failed" : "Never synced";
-  return formatLastSync(iso);
+  if (!iso) return status === "error" ? t("lastAttemptFailed") : t("statusNeverSynced");
+  return formatLastSync(iso, labels);
 }

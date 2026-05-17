@@ -1,11 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import {
-  AlertTriangle,
-  CircleHelp,
-  Flag,
-} from "lucide-react";
+import { useTranslations } from "next-intl";
+import { AlertTriangle, CircleHelp, Flag } from "lucide-react";
 import { CardShell } from "./card-shell";
 import type { HomeNeedsAttention } from "@/lib/types";
 
@@ -14,38 +11,39 @@ interface Props {
 }
 
 export function NeedsAttentionCard({ data }: Props) {
+  const t = useTranslations("home");
   const { uncategorized, lowConfidence, flagged } = data;
   const total = uncategorized + lowConfidence + flagged;
 
   if (total === 0) {
     return (
-      <CardShell label="Needs attention">
+      <CardShell label={t("needsAttention")}>
         <div className="flex flex-1 items-center justify-center gap-2 py-6 text-sm text-muted-foreground">
           <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--status-on-track)]" />
-          All clear.
+          {t("allClear")}
         </div>
       </CardShell>
     );
   }
 
   return (
-    <CardShell label="Needs attention">
+    <CardShell label={t("needsAttention")}>
       <ul className="flex flex-1 flex-col gap-2">
         <Row
           icon={<CircleHelp className="h-4 w-4" />}
-          label="Uncategorized"
+          label={t("needsAttentionUncategorized")}
           count={uncategorized}
           href="/transactions"
         />
         <Row
           icon={<AlertTriangle className="h-4 w-4" />}
-          label="Low AI confidence"
+          label={t("needsAttentionLowConfidence")}
           count={lowConfidence}
           href="/transactions"
         />
         <Row
           icon={<Flag className="h-4 w-4" />}
-          label="Flagged for review"
+          label={t("needsAttentionFlagged")}
           count={flagged}
           href="/transactions"
         />

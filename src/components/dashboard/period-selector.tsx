@@ -13,7 +13,7 @@ export function PeriodSelector({ label, onPrev, onNext }: PeriodSelectorProps) {
     <div className="flex items-center gap-0.5 rounded-md border border-input bg-background px-1">
       <Button variant="ghost" size="icon-sm" onClick={onPrev}>
         <svg
-          className="h-3.5 w-3.5"
+          className="h-3.5 w-3.5 rtl:rotate-180"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -31,7 +31,7 @@ export function PeriodSelector({ label, onPrev, onNext }: PeriodSelectorProps) {
       </span>
       <Button variant="ghost" size="icon-sm" onClick={onNext}>
         <svg
-          className="h-3.5 w-3.5"
+          className="h-3.5 w-3.5 rtl:rotate-180"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"

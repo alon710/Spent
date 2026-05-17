@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { CardShell, CardAction } from "./card-shell";
 import { formatCurrency, formatDate } from "@/lib/formatters";
+import { translateCategoryName } from "@/lib/i18n-data";
 import type { HomeRecentTransaction } from "@/lib/types";
 
 interface Props {
@@ -10,11 +12,13 @@ interface Props {
 }
 
 export function RecentTransactionsCard({ items }: Props) {
+  const t = useTranslations("home");
+  const tCat = useTranslations("categoriesSeeded");
   if (items.length === 0) {
     return (
-      <CardShell label="Recent activity">
+      <CardShell label={t("recentActivity")}>
         <div className="flex flex-1 items-center justify-center py-6 text-sm text-muted-foreground">
-          No transactions yet. Sync your bank to see activity here.
+          {t("noTransactionsYet")}
         </div>
       </CardShell>
     );
@@ -22,8 +26,8 @@ export function RecentTransactionsCard({ items }: Props) {
 
   return (
     <CardShell
-      label="Recent activity"
-      action={<CardAction href="/transactions">All transactions →</CardAction>}
+      label={t("recentActivity")}
+      action={<CardAction href="/transactions">{t("allTransactions")}</CardAction>}
     >
       <ul className="-mx-2 divide-y divide-border/60">
         {items.map((txn) => (
@@ -42,12 +46,12 @@ export function RecentTransactionsCard({ items }: Props) {
                   </div>
                   {txn.categoryName ? (
                     <CategoryBadge
-                      name={txn.categoryName}
+                      name={translateCategoryName(txn.categoryName, tCat)}
                       color={txn.categoryColor}
                     />
                   ) : (
                     <span className="text-xs text-muted-foreground">
-                      Uncategorized
+                      {t("uncategorized")}
                     </span>
                   )}
                 </div>

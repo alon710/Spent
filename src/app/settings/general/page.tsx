@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useLocale, useTranslations } from "next-intl";
 import { toast } from "sonner";
 import {
   Select,
@@ -17,6 +18,8 @@ import { Switch } from "@/components/ui/switch";
 import { SectionShell, SettingCard } from "@/components/settings/section-shell";
 import { WorkspaceNameCard } from "@/components/settings/workspace-controls";
 import { getSettings, getSummary, updateSettings } from "@/lib/api";
+import { formatCurrency } from "@/lib/formatters";
+import type { Locale } from "@/i18n/routing";
 
 function todayLocalISO(): string {
   const d = new Date();
@@ -32,6 +35,8 @@ function monthStartLocalISO(): string {
 }
 
 export default function GeneralSettingsPage() {
+  const t = useTranslations("settings.general");
+  const tCommon = useTranslations("common");
   const { data: settings } = useQuery({
     queryKey: ["settings"],
     queryFn: getSettings,
@@ -43,10 +48,7 @@ export default function GeneralSettingsPage() {
   });
 
   return (
-    <SectionShell
-      title="General"
-      description="Workspace name, monthly target, sync window, and when your monthly cycle resets."
-    >
+    <SectionShell title={t("title")} description={t("description")}>
       <WorkspaceNameCard />
       {settings ? (
         <>
@@ -68,7 +70,7 @@ export default function GeneralSettingsPage() {
         </>
       ) : (
         <SettingCard>
-          <div className="text-sm text-muted-foreground">Loading…</div>
+          <div className="text-sm text-muted-foreground">{tCommon("loading")}</div>
         </SettingCard>
       )}
     </SectionShell>
@@ -82,6 +84,9 @@ function MonthlyTargetCard({
   initialTarget: number | null;
   typicalMonthly: number | null;
 }) {
+  const t = useTranslations("settings.general");
+  const tCommon = useTranslations("common");
+  const locale = useLocale() as Locale;
   const queryClient = useQueryClient();
   const [value, setValue] = useState(
     initialTarget != null ? String(initialTarget) : ""
@@ -92,7 +97,7 @@ function MonthlyTargetCard({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["settings"] });
       queryClient.invalidateQueries({ queryKey: ["summary"] });
-      toast.success("Saved");
+      toast.success(tCommon("saved"));
     },
   });
 
@@ -104,11 +109,11 @@ function MonthlyTargetCard({
   return (
     <div id="section-monthly-target">
       <SettingCard
-        title="Monthly target"
-        description="A single number that drives your dashboard pace verdict. Leave blank to hide the verdict."
+        title={t("monthlyTargetTitle")}
+        description={t("monthlyTargetDescription")}
       >
         <div className="space-y-2 max-w-xs">
-          <Label htmlFor="monthly-target">Monthly spending target</Label>
+          <Label htmlFor="monthly-target">{t("monthlyTargetLabel")}</Label>
           <InputGroup prefix="₪">
             <Input
               id="monthly-target"
@@ -116,20 +121,21 @@ function MonthlyTargetCard({
               inputMode="numeric"
               min={0}
               step={1}
-              placeholder="e.g. 10000"
-              className="text-right tabular-nums"
+              placeholder={t("monthlyTargetPlaceholder")}
+              className="text-end tabular-nums"
               value={value}
               onChange={(e) => setValue(e.target.value)}
             />
           </InputGroup>
           {typicalMonthly != null ? (
             <p className="text-[11px] text-muted-foreground">
-              Typical last 3 months: ₪
-              {typicalMonthly.toLocaleString("en-IL")} / mo
+              {t("typicalLast3", {
+                amount: formatCurrency(typicalMonthly, "ILS", locale),
+              })}
             </p>
           ) : (
             <p className="text-[11px] text-muted-foreground">
-              No prior month history yet. Set a target you'd like to aim for.
+              {t("noPriorHistory")}
             </p>
           )}
         </div>
@@ -140,7 +146,7 @@ function MonthlyTargetCard({
             }
             disabled={!dirty || mutation.isPending}
           >
-            {mutation.isPending ? "Saving..." : "Save changes"}
+            {mutation.isPending ? tCommon("saving") : tCommon("saveChanges")}
           </Button>
         </div>
       </SettingCard>
@@ -155,6 +161,8 @@ function GeneralForm({
   initialMonths: number;
   initialPayday: number;
 }) {
+  const t = useTranslations("settings.general");
+  const tCommon = useTranslations("common");
   const queryClient = useQueryClient();
   const [months, setMonths] = useState(String(initialMonths));
   const [paydayDay, setPaydayDay] = useState(String(initialPayday));
@@ -164,7 +172,7 @@ function GeneralForm({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["settings"] });
       queryClient.invalidateQueries({ queryKey: ["summary"] });
-      toast.success("Saved");
+      toast.success(tCommon("saved"));
     },
   });
 
@@ -173,13 +181,13 @@ function GeneralForm({
 
   return (
     <SettingCard
-      title="Sync window & payday"
-      description="How far back each sync reaches, and the day your monthly cycle resets."
+      title={t("syncWindowTitle")}
+      description={t("syncWindowDescription")}
     >
       <div className="grid gap-5 sm:grid-cols-2">
         <div className="space-y-2">
           <div className="text-xs font-medium text-foreground/80">
-            Months to sync
+            {t("monthsToSync")}
           </div>
           <Select value={months} onValueChange={(v) => v && setMonths(v)}>
             <SelectTrigger>
@@ -188,17 +196,17 @@ function GeneralForm({
             <SelectContent>
               {[1, 2, 3, 6, 12].map((m) => (
                 <SelectItem key={m} value={String(m)}>
-                  {m} {m === 1 ? "month" : "months"}
+                  {m} {m === 1 ? tCommon("month") : tCommon("months")}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
           <p className="text-[11px] text-muted-foreground">
-            Banks limit history to roughly 12 months.
+            {t("banksLimit")}
           </p>
         </div>
         <div className="space-y-2">
-          <div className="text-xs font-medium text-foreground/80">Payday</div>
+          <div className="text-xs font-medium text-foreground/80">{t("payday")}</div>
           <Select value={paydayDay} onValueChange={(v) => v && setPaydayDay(v)}>
             <SelectTrigger>
               <SelectValue />
@@ -206,13 +214,13 @@ function GeneralForm({
             <SelectContent>
               {Array.from({ length: 28 }, (_, i) => i + 1).map((d) => (
                 <SelectItem key={d} value={String(d)}>
-                  {ordinal(d)} of the month
+                  {t("ordinalOfMonth", { ordinal: String(d) })}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
           <p className="text-[11px] text-muted-foreground">
-            Powers daily-allowance math and the days-until-payday hint.
+            {t("paydayHint")}
           </p>
         </div>
       </div>
@@ -226,17 +234,11 @@ function GeneralForm({
           }
           disabled={!dirty || mutation.isPending}
         >
-          {mutation.isPending ? "Saving..." : "Save changes"}
+          {mutation.isPending ? tCommon("saving") : tCommon("saveChanges")}
         </Button>
       </div>
     </SettingCard>
   );
-}
-
-function ordinal(n: number): string {
-  const s = ["th", "st", "nd", "rd"];
-  const v = n % 100;
-  return n + (s[(v - 20) % 10] || s[v] || s[0]);
 }
 
 function AutoSyncCard({
@@ -246,6 +248,8 @@ function AutoSyncCard({
   initialEnabled: boolean;
   initialTime: string;
 }) {
+  const t = useTranslations("settings.general");
+  const tCommon = useTranslations("common");
   const queryClient = useQueryClient();
   const [enabled, setEnabled] = useState(initialEnabled);
   const [time, setTime] = useState(initialTime);
@@ -255,10 +259,10 @@ function AutoSyncCard({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["settings"] });
       queryClient.invalidateQueries({ queryKey: ["home"] });
-      toast.success("Saved");
+      toast.success(tCommon("saved"));
     },
     onError: (err) => {
-      toast.error(err instanceof Error ? err.message : "Failed to save");
+      toast.error(err instanceof Error ? err.message : t("failedToSave"));
     },
   });
 
@@ -268,16 +272,16 @@ function AutoSyncCard({
 
   return (
     <SettingCard
-      title="Auto-sync"
-      description="Run sync and categorization automatically once a day, while the Spent server is running."
+      title={t("autoSyncTitle")}
+      description={t("autoSyncDescription")}
     >
       <div className="flex items-center justify-between gap-4">
         <div className="space-y-1">
           <Label htmlFor="auto-sync-toggle" className="text-sm font-medium">
-            Daily auto-sync
+            {t("dailyAutoSync")}
           </Label>
           <p className="text-[11px] text-muted-foreground">
-            Runs in Israel time. Disabled by default to avoid surprise bank logins.
+            {t("runsInIsraelTime")}
           </p>
         </div>
         <Switch
@@ -288,7 +292,7 @@ function AutoSyncCard({
       </div>
       <div className="mt-5 grid gap-2 sm:max-w-xs">
         <Label htmlFor="auto-sync-time" className="text-xs font-medium text-foreground/80">
-          Time of day
+          {t("timeOfDay")}
         </Label>
         <Input
           id="auto-sync-time"
@@ -299,7 +303,7 @@ function AutoSyncCard({
           className="tabular-nums"
         />
         <p className="text-[11px] text-muted-foreground">
-          24-hour, Asia/Jerusalem. Most banks post transactions overnight, so early morning works well.
+          {t("timeOfDayHint")}
         </p>
       </div>
       <div className="mt-5 flex justify-end">
@@ -309,7 +313,7 @@ function AutoSyncCard({
           }
           disabled={!dirty || mutation.isPending}
         >
-          {mutation.isPending ? "Saving..." : "Save changes"}
+          {mutation.isPending ? tCommon("saving") : tCommon("saveChanges")}
         </Button>
       </div>
     </SettingCard>

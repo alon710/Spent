@@ -100,6 +100,14 @@ Once you correct an AI categorization, Spent remembers — same merchant goes to
 
 </td>
 </tr>
+<tr>
+<td colspan="3" valign="top">
+
+### 🌐 English & Hebrew (RTL)
+Toggle between English (default) and עברית from **Settings → Appearance**. Hebrew flips the entire app to right-to-left with translated UI, bank names, predefined categories, currency, and date formatting. Powered by [`next-intl`](https://next-intl.dev/) — drop in a new `<locale>.json` under [`src/i18n/messages/`](src/i18n/messages/) to add another language.
+
+</td>
+</tr>
 </table>
 
 ## Screenshots
@@ -337,11 +345,11 @@ spent/
 
 ## Roadmap
 
+- [x] Hebrew UI with full RTL layout
 - [ ] Visa Cal scraper
 - [ ] Bank Leumi scraper
 - [ ] CSV / OFX export
 - [ ] Custom user-defined categories
-- [ ] Hebrew UI
 - [ ] Mobile companion (Phase 2)
 - [ ] Multiple workspaces in the menu bar / tray app
 
@@ -351,6 +359,7 @@ Spent is built for personal use first, open-source second. PRs welcome for:
 
 - **New bank integrations** — add to `BANK_PROVIDERS` in [src/lib/types.ts](src/lib/types.ts), map to `CompanyTypes` in [src/server/scrapers/index.ts](src/server/scrapers/index.ts), flip `enabled: true`.
 - **New AI providers** — implement the `AIProvider` interface from [src/server/ai/types.ts](src/server/ai/types.ts), register in [src/server/ai/factory.ts](src/server/ai/factory.ts), and add an option to the setup wizard.
+- **New languages** — add `<locale>.json` under [src/i18n/messages/](src/i18n/messages/), mirroring the keys in `en.json`, and append the locale to [src/i18n/routing.ts](src/i18n/routing.ts). Toggle wires itself up automatically.
 - **UI polish, bug fixes, documentation.**
 
 Conventions:
@@ -371,4 +380,5 @@ Built on the shoulders of:
 - [Next.js 16](https://nextjs.org/) and [React 19](https://react.dev/)
 - [`shadcn/ui`](https://ui.shadcn.com/) on top of [`base-ui`](https://base-ui.com/)
 - [`better-sqlite3`](https://github.com/WiseLibs/better-sqlite3)
+- [`next-intl`](https://next-intl.dev/) for English / Hebrew i18n
 - [Anthropic Claude](https://www.anthropic.com/) and the local-LLM crew at [Ollama](https://ollama.com/)

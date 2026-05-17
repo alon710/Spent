@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { translateProviderName } from "@/lib/i18n-data";
 import type { HomeBankHealthItem } from "@/lib/types";
 
 interface Props {
@@ -32,16 +34,24 @@ function truncate(s: string, max = 120): string {
 }
 
 export function SyncFailureBanner({ items, className }: Props) {
+  const t = useTranslations("syncFailureBanner");
+  const tBanks = useTranslations("banks");
   if (!items) return null;
   const failures = items.filter(
     (i) => i.status === "error" && i.lastSyncAt && isToday(i.lastSyncAt)
   );
   if (failures.length === 0) return null;
 
+  const firstName = translateProviderName(
+    failures[0].provider,
+    failures[0].providerName,
+    tBanks,
+  );
+
   const headline =
     failures.length === 1
-      ? `Sync failed for ${failures[0].providerName}`
-      : `Sync failed for ${failures.length} banks`;
+      ? t("oneBankTitle", { bank: firstName })
+      : t("multiBankTitle", { count: failures.length });
 
   const showsTwoFAHint = failures.some(
     (f) => f.errorMessage && TWO_FA_RE.test(f.errorMessage)
@@ -77,19 +87,19 @@ export function SyncFailureBanner({ items, className }: Props) {
           {headline}
         </div>
         <ul className="mt-1 space-y-0.5 text-sm text-muted-foreground">
-          {failures.map((f) => (
-            <li key={f.provider} className="truncate">
-              <span className="font-medium text-foreground/80">
-                {f.providerName}:
-              </span>{" "}
-              {truncate(f.errorMessage ?? "Sync failed")}
-            </li>
-          ))}
+          {failures.map((f) => {
+            const name = translateProviderName(f.provider, f.providerName, tBanks);
+            return (
+              <li key={f.provider} className="truncate">
+                <span className="font-medium text-foreground/80">{name}:</span>{" "}
+                {truncate(f.errorMessage ?? t("fallbackErrorMsg"))}
+              </li>
+            );
+          })}
         </ul>
         {showsTwoFAHint && (
           <p className="mt-2 text-xs text-muted-foreground">
-            Some banks (notably Yahav) block scraping when 2FA is on. Disable
-            it on the bank side and try again.
+            {t("twoFaHelper")}
           </p>
         )}
       </div>
@@ -98,7 +108,7 @@ export function SyncFailureBanner({ items, className }: Props) {
         size="sm"
         nativeButton={false}
         className="self-start sm:self-auto"
-        render={<Link href="/settings/bank">Reconnect bank</Link>}
+        render={<Link href="/settings/bank">{t("reconnectBank")}</Link>}
       />
     </div>
   );

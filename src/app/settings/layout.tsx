@@ -1,14 +1,16 @@
 import type { ReactNode } from "react";
+import { getTranslations } from "next-intl/server";
 import { AppShell, PageHeader } from "@/components/layout/app-shell";
 import {
   SettingsSidebar,
   SettingsMobileNav,
 } from "@/components/settings/settings-sidebar";
 
-export default function SettingsLayout({ children }: { children: ReactNode }) {
+export default async function SettingsLayout({ children }: { children: ReactNode }) {
+  const t = await getTranslations("settings");
   return (
     <AppShell>
-      <PageHeader title="Settings" />
+      <PageHeader title={t("pageTitle")} />
       <div className="flex min-h-[calc(100vh-4rem)] flex-1">
         <SettingsSidebar />
         <main className="min-w-0 flex-1">

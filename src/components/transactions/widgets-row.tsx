@@ -2,12 +2,14 @@
 
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useLocale, useTranslations } from "next-intl";
 import { ArrowDownRight, ArrowUpRight, HelpCircle } from "lucide-react";
 import { toast } from "sonner";
 import { previewCategorize } from "@/lib/api";
 import type { CategorizePreview, TransactionsSummary } from "@/lib/api";
 import { formatCurrency } from "@/lib/formatters";
 import { CategorizeReviewDialog } from "@/components/dashboard/categorize-review-dialog";
+import type { Locale } from "@/i18n/routing";
 
 interface WidgetsRowProps {
   summary?: TransactionsSummary;
@@ -23,10 +25,7 @@ export function WidgetsRow({ summary, loading }: WidgetsRowProps) {
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
       <div className="lg:col-span-2">
-        <TopMerchants
-          merchants={topMerchants}
-          loading={loading}
-        />
+        <TopMerchants merchants={topMerchants} loading={loading} />
       </div>
       <div className="flex flex-col gap-4">
         <PendingReview count={pendingReviewCount} loading={loading} />
@@ -46,16 +45,18 @@ interface TopMerchantsProps {
 }
 
 function TopMerchants({ merchants, loading }: TopMerchantsProps) {
+  const t = useTranslations("transactions");
+  const locale = useLocale() as Locale;
   return (
     <div className="h-full rounded-2xl border border-border bg-card p-5">
       <div className="text-xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
-        Top merchants
+        {t("topMerchants")}
       </div>
       <div className="mt-3 space-y-2">
         {loading ? (
-          <div className="text-sm text-muted-foreground">Loading...</div>
+          <div className="text-sm text-muted-foreground">{t("loadingShort")}</div>
         ) : merchants.length === 0 ? (
-          <div className="text-sm text-muted-foreground">No merchants yet.</div>
+          <div className="text-sm text-muted-foreground">{t("noMerchantsYet")}</div>
         ) : (
           merchants.map((m, idx) => (
             <div
@@ -63,7 +64,7 @@ function TopMerchants({ merchants, loading }: TopMerchantsProps) {
               className="flex items-center justify-between gap-3 py-1"
             >
               <div className="flex min-w-0 items-center gap-3">
-                <span className="w-4 text-right text-xs tabular-nums text-muted-foreground">
+                <span className="w-4 text-end text-xs tabular-nums text-muted-foreground">
                   {idx + 1}
                 </span>
                 <div className="min-w-0 flex-1 truncate text-sm font-medium">
@@ -72,10 +73,10 @@ function TopMerchants({ merchants, loading }: TopMerchantsProps) {
               </div>
               <div className="flex shrink-0 items-center gap-3">
                 <span className="text-xs text-muted-foreground">
-                  {m.count} {m.count === 1 ? "txn" : "txns"}
+                  {m.count} {m.count === 1 ? t("txnsOne") : t("txnsOther")}
                 </span>
                 <span className="font-serif text-base tabular-nums">
-                  {formatCurrency(m.total)}
+                  {formatCurrency(m.total, "ILS", locale)}
                 </span>
               </div>
             </div>
@@ -92,6 +93,8 @@ interface PendingReviewProps {
 }
 
 function PendingReview({ count, loading }: PendingReviewProps) {
+  const t = useTranslations("transactions");
+  const tDash = useTranslations("dashboard");
   const queryClient = useQueryClient();
   const [preview, setPreview] = useState<CategorizePreview | null>(null);
 
@@ -99,14 +102,14 @@ function PendingReview({ count, loading }: PendingReviewProps) {
     mutationFn: previewCategorize,
     onSuccess: (data) => {
       if (data.uncategorizedCount === 0) {
-        toast.info("Nothing left to categorize.");
+        toast.info(t("nothingLeftToCategorize"));
         return;
       }
       setPreview(data);
     },
     onError: (err) => {
       toast.error(
-        err instanceof Error ? err.message : "Categorization failed"
+        err instanceof Error ? err.message : tDash("categorizationFailed")
       );
     },
   });
@@ -115,10 +118,10 @@ function PendingReview({ count, loading }: PendingReviewProps) {
     return (
       <div className="rounded-2xl border border-border bg-card p-5">
         <div className="text-xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
-          Pending review
+          {t("pendingReview")}
         </div>
         <div className="mt-2 text-sm text-muted-foreground">
-          Nothing flagged for review.
+          {t("nothingFlagged")}
         </div>
       </div>
     );
@@ -129,7 +132,7 @@ function PendingReview({ count, loading }: PendingReviewProps) {
       <div className="rounded-2xl border border-border bg-card p-5">
         <div className="flex items-center justify-between">
           <div className="text-xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
-            Pending review
+            {t("pendingReview")}
           </div>
           <div
             className="flex h-7 w-7 items-center justify-center rounded-full"
@@ -146,7 +149,7 @@ function PendingReview({ count, loading }: PendingReviewProps) {
           {loading ? <span className="text-muted-foreground">—</span> : count}
         </div>
         <div className="mt-0.5 text-xs text-muted-foreground">
-          {count === 1 ? "transaction" : "transactions"} need a closer look
+          {count === 1 ? t("needCloserLookOne") : t("needCloserLookOther")}
         </div>
         <button
           type="button"
@@ -154,7 +157,7 @@ function PendingReview({ count, loading }: PendingReviewProps) {
           disabled={mutation.isPending || loading || count === 0}
           className="mt-3 inline-flex h-8 items-center justify-center rounded-md border border-border px-3 text-xs font-medium hover:bg-accent disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {mutation.isPending ? "Loading..." : "Review now"}
+          {mutation.isPending ? t("loadingShort") : t("reviewNow")}
         </button>
       </div>
 
@@ -184,21 +187,22 @@ interface OutliersProps {
 }
 
 function Outliers({ largestIncome, largestExpense, loading }: OutliersProps) {
+  const t = useTranslations("transactions");
   return (
     <div className="rounded-2xl border border-border bg-card p-5">
       <div className="text-xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
-        Outliers
+        {t("outliers")}
       </div>
       <div className="mt-3 space-y-3">
         <OutlierRow
-          label="Largest expense"
+          label={t("largestExpense")}
           txn={largestExpense}
           color="var(--status-over)"
           icon={<ArrowDownRight className="h-4 w-4" />}
           loading={loading}
         />
         <OutlierRow
-          label="Largest income"
+          label={t("largestIncome")}
           txn={largestIncome}
           color="var(--status-on-track)"
           icon={<ArrowUpRight className="h-4 w-4" />}
@@ -222,6 +226,7 @@ function OutlierRow({
   icon: React.ReactNode;
   loading: boolean;
 }) {
+  const locale = useLocale() as Locale;
   return (
     <div>
       <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -241,7 +246,7 @@ function OutlierRow({
             className="shrink-0 font-serif text-base tabular-nums"
             style={{ color }}
           >
-            {formatCurrency(txn.chargedAmount)}
+            {formatCurrency(txn.chargedAmount, "ILS", locale)}
           </div>
         </div>
       )}

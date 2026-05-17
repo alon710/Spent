@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { ArrowDownRight, ArrowUpRight } from "lucide-react";
 import { CardShell } from "./card-shell";
 import { formatCurrency } from "@/lib/formatters";
@@ -10,21 +11,22 @@ interface Props {
 }
 
 export function CashFlowCard({ data }: Props) {
+  const t = useTranslations("home");
   const { income, expenses, net } = data;
   const netPositive = net >= 0;
 
   return (
-    <CardShell label="Cash flow">
+    <CardShell label={t("cashFlowTitle")}>
       <div className="flex flex-1 flex-col justify-between gap-5">
         <div className="space-y-3">
           <Row
-            label="In"
+            label={t("cashFlowIn")}
             value={formatCurrency(income)}
             icon={<ArrowDownRight className="h-3.5 w-3.5 text-[var(--status-on-track)]" />}
             valueClass="text-[var(--status-on-track)]"
           />
           <Row
-            label="Out"
+            label={t("cashFlowOut")}
             value={formatCurrency(expenses)}
             icon={<ArrowUpRight className="h-3.5 w-3.5 text-[var(--status-over)]" />}
             valueClass="text-foreground"
@@ -34,7 +36,7 @@ export function CashFlowCard({ data }: Props) {
         <div className="border-t border-border pt-3">
           <div className="flex items-baseline justify-between">
             <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Net
+              {t("cashFlowNet")}
             </span>
             <span
               className={`font-serif text-2xl tabular-nums ${

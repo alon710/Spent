@@ -72,7 +72,7 @@ export function WorkspaceSwitcher() {
             <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary/15 font-semibold text-primary">
               {initial}
             </div>
-            <div className="flex min-w-0 flex-1 flex-col text-left group-data-[collapsible=icon]:hidden">
+            <div className="flex min-w-0 flex-1 flex-col text-start group-data-[collapsible=icon]:hidden">
               <span className="truncate text-sm font-medium">
                 {active?.name ?? "Workspace"}
               </span>
@@ -80,7 +80,7 @@ export function WorkspaceSwitcher() {
                 Workspace
               </span>
             </div>
-            <ChevronsUpDown className="ml-auto size-4 shrink-0 opacity-60 group-data-[collapsible=icon]:hidden" />
+            <ChevronsUpDown className="ms-auto size-4 shrink-0 opacity-60 group-data-[collapsible=icon]:hidden" />
           </DropdownMenuTrigger>
 
           <DropdownMenuContent

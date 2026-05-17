@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { CardShell } from "./card-shell";
 import { formatCurrency } from "@/lib/formatters";
 import type { HomeHistoricalTrendPoint } from "@/lib/types";
@@ -10,14 +11,15 @@ interface Props {
 }
 
 export function HistoricalTrendCard({ data }: Props) {
+  const t = useTranslations("home");
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
   const hasData = data.some((d) => d.total > 0);
 
   if (!hasData) {
     return (
-      <CardShell label="Last 8 months">
+      <CardShell label={t("last8Months")}>
         <div className="flex flex-1 items-center justify-center py-6 text-sm text-muted-foreground">
-          Not enough history yet.
+          {t("notEnoughHistory")}
         </div>
       </CardShell>
     );
@@ -27,7 +29,7 @@ export function HistoricalTrendCard({ data }: Props) {
   const active = hoverIdx != null ? data[hoverIdx] : data[data.length - 1];
 
   return (
-    <CardShell label="Last 8 months">
+    <CardShell label={t("last8Months")}>
       <div className="flex flex-1 flex-col justify-between gap-4">
         <div>
           <div className="flex items-baseline gap-2">
@@ -36,7 +38,7 @@ export function HistoricalTrendCard({ data }: Props) {
             </span>
             <span className="text-xs text-muted-foreground">
               {active.label}
-              {active.isCurrent ? " (so far)" : ""}
+              {active.isCurrent ? ` ${t("soFar")}` : ""}
             </span>
           </div>
         </div>

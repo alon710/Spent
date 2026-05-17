@@ -1,16 +1,47 @@
 "use client";
 
 import Link from "next/link";
+import { useLocale, useTranslations } from "next-intl";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatCurrency } from "@/lib/formatters";
+import { translateCategoryName } from "@/lib/i18n-data";
 import type { DashboardSummary } from "@/lib/types";
+import type { Locale } from "@/i18n/routing";
 
 interface HeroCardProps {
   data: DashboardSummary | undefined;
   loading: boolean;
+  monthLabel: string;
 }
 
-export function HeroCard({ data, loading }: HeroCardProps) {
+type PaceVerdict =
+  | "overBudget"
+  | "headsUp"
+  | "wellUnder"
+  | "ahead"
+  | "onSchedule"
+  | "noBudget";
+
+function computeVerdict(
+  budgetedSpent: number,
+  totalBudget: number,
+  timeElapsedPercent: number,
+): PaceVerdict {
+  if (totalBudget <= 0) return "noBudget";
+  const pctSpent = (budgetedSpent / totalBudget) * 100;
+  if (pctSpent > 100) return "overBudget";
+  const delta = pctSpent - timeElapsedPercent;
+  if (delta >= 25) return "headsUp";
+  if (delta <= -25) return "wellUnder";
+  if (delta <= -10) return "ahead";
+  return "onSchedule";
+}
+
+export function HeroCard({ data, loading, monthLabel }: HeroCardProps) {
+  const t = useTranslations("dashboard");
+  const tCat = useTranslations("categoriesSeeded");
+  const locale = useLocale() as Locale;
+
   if (loading || !data) {
     return (
       <div className="rounded-3xl border border-border bg-card p-8">
@@ -20,7 +51,6 @@ export function HeroCard({ data, loading }: HeroCardProps) {
   }
 
   const {
-    pacePhrase,
     periodTotal,
     budgetedSpent,
     totalBudget,
@@ -32,9 +62,6 @@ export function HeroCard({ data, loading }: HeroCardProps) {
   } = data;
   const hasBudget = totalBudget > 0;
 
-  // Top 4 categories for the stacked bar + legend, then "+X more".
-  // Use the rollup view (parents + orphan leaves) so children don't
-  // double-count alongside their parents.
   const parentIdsWithRollup = new Set(
     categoriesWithData.filter((c) => c.isParent).map((c) => c.categoryId)
   );
@@ -54,7 +81,7 @@ export function HeroCard({ data, loading }: HeroCardProps) {
 
   const legend = [
     ...topFour.map((c) => ({
-      name: c.categoryName,
+      name: translateCategoryName(c.categoryName, tCat),
       color: c.categoryColor,
       amount: c.spent,
       pct: grandTotal > 0 ? (c.spent / grandTotal) * 100 : 0,
@@ -62,7 +89,7 @@ export function HeroCard({ data, loading }: HeroCardProps) {
     ...(rest.length > 0
       ? [
           {
-            name: `+${rest.length} more`,
+            name: t("moreCategories", { count: rest.length }),
             color: "#B1AA9C",
             amount: restTotal,
             pct: grandTotal > 0 ? (restTotal / grandTotal) * 100 : 0,
@@ -71,42 +98,50 @@ export function HeroCard({ data, loading }: HeroCardProps) {
       : []),
   ];
 
-  const heroPhrase = renderPhrase(
-    pacePhrase,
-    hasBudget ? budgetedSpent : periodTotal
-  );
+  const verdict = computeVerdict(budgetedSpent, totalBudget, timeElapsedPercent);
+  const todayPhrase = useTodayPhrase(todayLabel, locale);
 
   const ctaLabel = typicalMonthly
-    ? `Set a monthly target (₪${typicalMonthly.toLocaleString("en-IL")} typical) →`
-    : `Set a monthly target to see how you're pacing →`;
+    ? t("setMonthlyTargetWithTypical", {
+        amount: formatCurrency(typicalMonthly, "ILS", locale),
+      })
+    : t("setMonthlyTarget");
 
   const body = (
     <div className="space-y-5">
       <p className="text-sm text-muted-foreground">
-        {todayLabel}
+        {todayPhrase}
         {" · "}
-        You have <span className="font-medium text-foreground">{daysUntilPayday} {daysUntilPayday === 1 ? "day" : "days"}</span>{" "}
-        until payday
+        {t("youHavePaydayPrefix")}{" "}
+        <span className="font-medium text-foreground">
+          {daysUntilPayday}{" "}
+          {daysUntilPayday === 1 ? t("daysOne") : t("daysOther")}
+        </span>{" "}
+        {t("untilPayday")}
       </p>
       <h2 className="font-serif text-3xl leading-[1.05] tracking-tighter md:text-4xl lg:text-5xl">
-        {heroPhrase}
+        <HeroPhrase
+          hasBudget={hasBudget}
+          verdict={verdict}
+          monthLabel={monthLabel}
+          displaySpent={hasBudget ? budgetedSpent : periodTotal}
+          totalBudget={totalBudget}
+          locale={locale}
+        />
       </h2>
       {legend.length > 0 && (
         <div className="space-y-3 pt-2">
           <StackedBar legend={legend} />
           <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
             {legend.map((seg) => (
-              <div
-                key={seg.name}
-                className="flex items-center gap-2"
-              >
+              <div key={seg.name} className="flex items-center gap-2">
                 <div
                   className="h-2.5 w-2.5 rounded-sm"
                   style={{ backgroundColor: seg.color }}
                 />
                 <span className="font-medium">{seg.name}</span>
                 <span className="tabular-nums text-muted-foreground">
-                  {formatCurrency(seg.amount)} {"·"}{" "}
+                  {formatCurrency(seg.amount, "ILS", locale)} {"·"}{" "}
                   {Math.round(seg.pct)}%
                 </span>
               </div>
@@ -137,6 +172,8 @@ export function HeroCard({ data, loading }: HeroCardProps) {
               budgetedSpent={budgetedSpent}
               totalBudget={totalBudget}
               timeElapsedPercent={timeElapsedPercent}
+              verdict={verdict}
+              locale={locale}
             />
           </div>
           {body}
@@ -148,44 +185,100 @@ export function HeroCard({ data, loading }: HeroCardProps) {
   );
 }
 
-function renderPhrase(phrase: string, total: number) {
-  // Split on the spend amount so we can style it serif-bold,
-  // and on the pace keyword so we can color-emphasize it.
-  const amountStr = `₪${Math.round(total).toLocaleString("en-IL")}`;
-  const parts = phrase.split(amountStr);
-  if (parts.length !== 2) {
-    return <span>{phrase}</span>;
+function useTodayPhrase(serverLabel: string, locale: Locale): string {
+  // Re-format today's date in the current locale so Hebrew users see Hebrew.
+  // The server passed a snapshot, but we re-derive from `new Date()` for the locale.
+  try {
+    const fmt = new Intl.DateTimeFormat(locale === "he" ? "he-IL" : "en-IL", {
+      weekday: "long",
+      month: "long",
+      day: "numeric",
+    });
+    return fmt.format(new Date());
+  } catch {
+    return serverLabel;
   }
-  const after = parts[1];
+}
 
-  // Find the keyword that indicates pace tone
-  const tones: [string, string][] = [
-    ["over budget", "text-[var(--status-over)]"],
-    ["over schedule", "text-[var(--status-over)]"],
-    ["well under schedule", "text-[var(--status-on-track)]"],
-    ["ahead of schedule", "text-[var(--status-on-track)]"],
-    ["on schedule", "text-[var(--status-on-track)]"],
-  ];
-  let toneRender = <span>{after}</span>;
-  for (const [keyword, cls] of tones) {
-    if (after.includes(keyword)) {
-      const [before, rest] = after.split(keyword);
-      toneRender = (
-        <>
-          {before}
-          <span className={cls}>{keyword}</span>
-          {rest}
-        </>
-      );
-      break;
-    }
+function HeroPhrase({
+  hasBudget,
+  verdict,
+  monthLabel,
+  displaySpent,
+  totalBudget,
+  locale,
+}: {
+  hasBudget: boolean;
+  verdict: PaceVerdict;
+  monthLabel: string;
+  displaySpent: number;
+  totalBudget: number;
+  locale: Locale;
+}) {
+  const t = useTranslations("dashboard");
+  const amount = formatCurrency(displaySpent, "ILS", locale);
+  const budget = formatCurrency(totalBudget, "ILS", locale);
+
+  if (!hasBudget) {
+    return <span>{t("phraseSpentThis", { amount, month: monthLabel })}</span>;
   }
+
+  const lead = t("phraseLead", { amount, budget, month: monthLabel });
+  const tail =
+    verdict === "overBudget"
+      ? t("phraseOver")
+      : verdict === "headsUp"
+        ? t("phraseHeadsUp")
+        : verdict === "wellUnder"
+          ? t("phraseWellUnder")
+          : verdict === "ahead"
+            ? t("phraseAhead")
+            : t("phraseOnSchedule");
+
+  const toneWord =
+    verdict === "overBudget"
+      ? t("wordOverBudget")
+      : verdict === "headsUp"
+        ? t("wordOverSchedule")
+        : verdict === "wellUnder"
+          ? t("wordWellUnder")
+          : verdict === "ahead"
+            ? t("wordAhead")
+            : t("wordOnSchedule");
+
+  const toneClass =
+    verdict === "overBudget" || verdict === "headsUp"
+      ? "text-[var(--status-over)]"
+      : "text-[var(--status-on-track)]";
+
+  const leadParts = lead.split(amount);
+  const renderLead =
+    leadParts.length === 2 ? (
+      <>
+        {leadParts[0]}
+        <span className="text-[var(--status-on-track)]">{amount}</span>
+        {leadParts[1]}
+      </>
+    ) : (
+      lead
+    );
+
+  const tailParts = tail.split(toneWord);
+  const renderTail =
+    tailParts.length === 2 ? (
+      <>
+        {tailParts[0]}
+        <span className={toneClass}>{toneWord}</span>
+        {tailParts[1]}
+      </>
+    ) : (
+      tail
+    );
 
   return (
     <>
-      {parts[0]}
-      <span className="text-[var(--status-on-track)]">{amountStr}</span>
-      {toneRender}
+      {renderLead}
+      {renderTail}
     </>
   );
 }
@@ -195,12 +288,17 @@ function PaceGauge({
   budgetedSpent,
   totalBudget,
   timeElapsedPercent,
+  verdict,
+  locale,
 }: {
   periodTotal: number;
   budgetedSpent: number;
   totalBudget: number;
   timeElapsedPercent: number;
+  verdict: PaceVerdict;
+  locale: Locale;
 }) {
+  const t = useTranslations("dashboard");
   const size = 200;
   const stroke = 18;
   const radius = (size - stroke) / 2;
@@ -214,13 +312,10 @@ function PaceGauge({
     : 0;
   const dash = (fillPercent / 100) * circumference;
 
-  // Pace logic mirrors `pacePhrase` thresholds so gauge and phrase agree.
-  // delta is in percentage points: pctSpent - timeElapsedPercent.
   const pctSpent = hasBudget ? (budgetedSpent / totalBudget) * 100 : 0;
   const delta = pctSpent - timeElapsedPercent;
   const scheduleTarget = totalBudget * (timeElapsedPercent / 100);
   const scheduleGap = budgetedSpent - scheduleTarget;
-  const absScheduleGap = Math.round(Math.abs(scheduleGap));
   const overBudgetBy = Math.round(Math.max(0, budgetedSpent - totalBudget));
 
   const isOverBudget = pctSpent > 100;
@@ -231,23 +326,25 @@ function PaceGauge({
     ? "text-[var(--status-over)]"
     : "text-[var(--status-on-track)]";
 
-  let verdict: string;
+  let verdictText: string;
   if (!hasBudget) {
-    verdict = "spent this month";
+    verdictText = t("verdictSpentThisMonth");
   } else if (isOverBudget) {
-    verdict = `₪${overBudgetBy.toLocaleString("en-IL")} over budget`;
+    verdictText = t("verdictOverBudgetBy", {
+      amount: formatCurrency(overBudgetBy, "ILS", locale),
+    });
   } else if (delta >= 25) {
-    verdict = `₪${absScheduleGap.toLocaleString("en-IL")} over schedule`;
+    verdictText = t("verdictOverSchedule", {
+      amount: formatCurrency(Math.abs(scheduleGap), "ILS", locale),
+    });
   } else if (isAhead) {
-    verdict = `₪${absScheduleGap.toLocaleString("en-IL")} ahead of schedule`;
+    verdictText = t("verdictAheadOfSchedule", {
+      amount: formatCurrency(Math.abs(scheduleGap), "ILS", locale),
+    });
   } else {
-    verdict = "On schedule";
+    verdictText = t("verdictOnSchedule");
   }
 
-  // Notch position at the expected-by-today point on the ring.
-  // SVG is rotated -90deg, so angle 0 in SVG-local coords appears at the top.
-  // The stroke dash starts at angle 0 and traces clockwise (since +y is down).
-  // For fraction p ∈ [0,1], the position is at angle 2π·p from SVG +x axis.
   const notchAngle = (timeElapsedPercent / 100) * 2 * Math.PI;
   const cosA = Math.cos(notchAngle);
   const sinA = Math.sin(notchAngle);
@@ -257,6 +354,8 @@ function PaceGauge({
   const notchY1 = cy + notchInnerR * sinA;
   const notchX2 = cx + notchOuterR * cosA;
   const notchY2 = cy + notchOuterR * sinA;
+
+  void verdict;
 
   return (
     <div className="relative" style={{ width: size, height: size }}>
@@ -296,17 +395,17 @@ function PaceGauge({
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center px-4 text-center">
         <div className="font-serif text-3xl tabular-nums">
-          ₪{Math.round(hasBudget ? budgetedSpent : periodTotal).toLocaleString("en-IL")}
+          {formatCurrency(hasBudget ? budgetedSpent : periodTotal, "ILS", locale)}
         </div>
         {hasBudget && (
           <div className="mt-0.5 text-[11px] text-muted-foreground tabular-nums">
-            of ₪{Math.round(totalBudget).toLocaleString("en-IL")}
+            {t("ofBudget", { amount: formatCurrency(totalBudget, "ILS", locale) })}
           </div>
         )}
         <div
           className={`mt-1 text-xs ${hasBudget ? verdictClass : "text-muted-foreground"}`}
         >
-          {verdict}
+          {verdictText}
         </div>
       </div>
     </div>

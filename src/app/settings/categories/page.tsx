@@ -111,12 +111,12 @@ export default function CategoriesSettingsPage() {
             </KindTab>
           </div>
           <div className="relative flex-1 min-w-[180px]">
-            <Search className="pointer-events-none absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground/70" />
+            <Search className="pointer-events-none absolute start-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground/70" />
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search categories…"
-              className="pl-8"
+              className="ps-8"
             />
           </div>
           <NewGroupDialog kind={activeKind} />
@@ -232,7 +232,7 @@ function GroupBlock({
           <button
             type="button"
             onClick={() => onSelect(parent.id)}
-            className="ml-auto text-[10px] uppercase tracking-[0.08em] text-muted-foreground/70 hover:text-foreground"
+            className="ms-auto text-[10px] uppercase tracking-[0.08em] text-muted-foreground/70 hover:text-foreground"
           >
             Edit group
           </button>
@@ -260,7 +260,7 @@ function CategoryRow({
       <button
         type="button"
         onClick={onSelect}
-        className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/50"
+        className="flex w-full items-center gap-3 px-4 py-3 text-start transition-colors hover:bg-muted/50"
       >
         <span
           className="h-2.5 w-2.5 shrink-0 rounded-full"
@@ -276,7 +276,7 @@ function CategoryRow({
             </div>
           ) : null}
         </div>
-        <div className="hidden shrink-0 text-right sm:block">
+        <div className="hidden shrink-0 text-end sm:block">
           {data ? (
             <div className="text-xs tabular-nums text-muted-foreground">
               ₪{Math.round(data.spent).toLocaleString("en-IL")} spent
@@ -284,7 +284,7 @@ function CategoryRow({
           ) : null}
         </div>
         <BudgetChip category={category} data={data} />
-        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/60" />
+        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/60 rtl:rotate-180" />
       </button>
     </li>
   );

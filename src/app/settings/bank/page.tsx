@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 import {
   ChevronRight,
   Plus,
@@ -23,6 +24,8 @@ import { BankDetailSheet } from "@/components/settings/bank-detail-sheet";
 import { useBankSync } from "@/components/settings/use-bank-sync";
 import { listIntegrations } from "@/lib/api";
 import { BANK_PROVIDERS } from "@/lib/types";
+import { translateProviderName, useFormatterLabels } from "@/lib/i18n-data";
+import { formatLastSync } from "@/lib/formatters";
 
 interface SheetState {
   open: boolean;
@@ -31,6 +34,10 @@ interface SheetState {
 }
 
 export default function BankSettingsPage() {
+  const t = useTranslations("settings.bank");
+  const tBanks = useTranslations("banks");
+  const labels = useFormatterLabels();
+
   const { data: integrations = [] } = useQuery({
     queryKey: ["integrations"],
     queryFn: listIntegrations,
@@ -64,22 +71,22 @@ export default function BankSettingsPage() {
       ? integrations.find((i) => i.provider === sheet.providerId) ?? null
       : null;
 
+  const countLabel =
+    integrations.length === 1
+      ? t("banksConnectedOne", { count: integrations.length })
+      : t("banksConnectedOther", { count: integrations.length });
+
   return (
     <>
-      <SectionShell
-        title="Bank accounts"
-        description="Connected institutions. Credentials are encrypted with AES-256-GCM and never leave your machine."
-      >
+      <SectionShell title={t("title")} description={t("description")}>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="text-xs text-muted-foreground">
-            {integrations.length}{" "}
-            {integrations.length === 1 ? "bank" : "banks"} connected
+            {countLabel}
             {lastSync ? (
               <>
-                {" "}
-                · Last sync{" "}
+                {" · "}
                 <span className="text-foreground/80">
-                  {formatRelative(lastSync)}
+                  {t("lastSync", { time: formatLastSync(lastSync, labels) })}
                 </span>
               </>
             ) : null}
@@ -93,7 +100,7 @@ export default function BankSettingsPage() {
               className="gap-1.5"
             >
               <RefreshCw className="h-3.5 w-3.5" />
-              {anySyncing ? "Syncing…" : "Sync all"}
+              {anySyncing ? t("syncing") : t("syncAll")}
             </Button>
             {availableToAdd.length > 0 ? (
               <DropdownMenu>
@@ -101,7 +108,7 @@ export default function BankSettingsPage() {
                   render={
                     <Button size="sm" className="gap-1.5">
                       <Plus className="h-3.5 w-3.5" />
-                      Add bank
+                      {t("addBank")}
                     </Button>
                   }
                 />
@@ -122,7 +129,7 @@ export default function BankSettingsPage() {
                           className="h-2 w-2 rounded-full"
                           style={{ background: b.color }}
                         />
-                        {b.name}
+                        {translateProviderName(b.id, b.name, tBanks)}
                       </span>
                     </DropdownMenuItem>
                   ))}
@@ -134,7 +141,9 @@ export default function BankSettingsPage() {
 
         {integrations.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-border bg-card p-8 text-center text-sm text-muted-foreground">
-            No banks connected yet. Click <b>Add bank</b> to connect one.
+            {t.rich("noneConnectedPrompt", {
+              addBankBold: () => <b>{t("addBank")}</b>,
+            })}
           </div>
         ) : (
           <div className="overflow-hidden rounded-2xl border border-border bg-card">
@@ -145,12 +154,21 @@ export default function BankSettingsPage() {
                 );
                 if (!info) return null;
                 const sync = stateFor(integration.provider);
+                const localName = translateProviderName(info.id, info.name, tBanks);
                 const openSheet = () =>
                   setSheet({
                     open: true,
                     mode: "edit",
                     providerId: integration.provider,
                   });
+                const subline = integration.lastSyncAt
+                  ? t("transactionsCountWithSync", {
+                      count: integration.transactionCount,
+                      time: formatLastSync(integration.lastSyncAt, labels),
+                    })
+                  : t("transactionsCountNever", {
+                      count: integration.transactionCount,
+                    });
                 return (
                   <li
                     key={integration.provider}
@@ -159,33 +177,30 @@ export default function BankSettingsPage() {
                     <button
                       type="button"
                       onClick={openSheet}
-                      aria-label={`Open ${info.name} details`}
-                      className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                      aria-label={t("openDetails", { name: localName })}
+                      className="flex min-w-0 flex-1 items-center gap-3 text-start"
                     >
                       <ProviderBadge
                         color={info.color}
-                        name={info.name}
+                        name={localName}
                         domain={info.domain}
                         size={36}
                         radius={9}
                       />
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 text-sm font-medium">
-                          {info.name}
+                          {localName}
                           <StatusPill
                             lastSyncAt={integration.lastSyncAt}
                             syncing={sync.syncing}
                           />
                         </div>
                         <div className="mt-0.5 truncate text-xs text-muted-foreground">
-                          {integration.transactionCount} transactions
-                          {integration.lastSyncAt
-                            ? ` · last sync ${formatRelative(integration.lastSyncAt)}`
-                            : " · never synced"}
+                          {subline}
                         </div>
                       </div>
                     </button>
-                    <SyncButton
+                    <SyncShortButton
                       syncing={sync.syncing}
                       stage={sync.stage}
                       onClick={() => start(integration.provider)}
@@ -193,10 +208,10 @@ export default function BankSettingsPage() {
                     <button
                       type="button"
                       onClick={openSheet}
-                      aria-label={`Open ${info.name} details`}
-                      className="-mr-1 shrink-0 rounded-md p-1 text-muted-foreground/60 hover:bg-muted hover:text-foreground"
+                      aria-label={t("openDetails", { name: localName })}
+                      className="-me-1 shrink-0 rounded-md p-1 text-muted-foreground/60 hover:bg-muted hover:text-foreground"
                     >
-                      <ChevronRight className="h-4 w-4" />
+                      <ChevronRight className="h-4 w-4 rtl:rotate-180" />
                     </button>
                   </li>
                 );
@@ -224,28 +239,29 @@ function StatusPill({
   lastSyncAt: string | null;
   syncing: boolean;
 }) {
+  const t = useTranslations("settings.bank");
   if (syncing) {
     return (
       <span className="inline-flex items-center gap-1 rounded-full bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
-        <Loader2 className="h-3 w-3 animate-spin" /> Syncing
+        <Loader2 className="h-3 w-3 animate-spin" /> {t("statusSyncing")}
       </span>
     );
   }
   if (!lastSyncAt) {
     return (
       <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[10px] text-amber-700 dark:text-amber-300">
-        <CircleAlert className="h-3 w-3" /> Never synced
+        <CircleAlert className="h-3 w-3" /> {t("statusNeverSynced")}
       </span>
     );
   }
   return (
     <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-1.5 py-0.5 text-[10px] text-emerald-700 dark:text-emerald-300">
-      <CircleCheck className="h-3 w-3" /> Connected
+      <CircleCheck className="h-3 w-3" /> {t("statusConnected")}
     </span>
   );
 }
 
-function SyncButton({
+function SyncShortButton({
   syncing,
   stage,
   onClick,
@@ -254,11 +270,12 @@ function SyncButton({
   stage: string;
   onClick: () => void;
 }) {
+  const t = useTranslations("settings.bank");
   if (syncing) {
     return (
       <span className="inline-flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground">
         <Loader2 className="h-3.5 w-3.5 animate-spin" />
-        <span className="hidden sm:inline">{stage || "Syncing…"}</span>
+        <span className="hidden sm:inline">{stage || t("syncing")}</span>
       </span>
     );
   }
@@ -270,17 +287,7 @@ function SyncButton({
       onClick={onClick}
     >
       <RefreshCw className="h-3.5 w-3.5" />
-      Sync
+      {t("syncShort")}
     </Button>
   );
-}
-
-function formatRelative(iso: string): string {
-  const then = new Date(iso.replace(" ", "T") + "Z");
-  const diffSec = (Date.now() - then.getTime()) / 1000;
-  if (diffSec < 60) return "just now";
-  if (diffSec < 3600) return `${Math.round(diffSec / 60)}m ago`;
-  if (diffSec < 86400) return `${Math.round(diffSec / 3600)}h ago`;
-  if (diffSec < 86400 * 7) return `${Math.round(diffSec / 86400)}d ago`;
-  return then.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }

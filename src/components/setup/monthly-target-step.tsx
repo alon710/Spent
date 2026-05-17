@@ -67,7 +67,7 @@ export function MonthlyTargetStep({ onComplete, onBack }: MonthlyTargetStepProps
             min={0}
             step={1}
             placeholder="e.g. 10000"
-            className="text-right tabular-nums"
+            className="text-end tabular-nums"
             value={value}
             onChange={(e) => setValue(e.target.value)}
             autoFocus

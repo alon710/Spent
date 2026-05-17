@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import { CategoryCard } from "./category-card";
 import { BudgetDetailSheet } from "./budget-detail-sheet";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -33,15 +34,6 @@ interface CategoryGridProps {
   to: string;
   viewMode: CategoryViewMode;
 }
-
-const FILTER_LABELS: { id: Filter; label: string }[] = [
-  { id: "all", label: "All" },
-  { id: "needs-action", label: "Needs action" },
-  { id: "on-track", label: "On track" },
-  { id: "heads-up", label: "Heads up" },
-  { id: "over", label: "Over" },
-  { id: "plenty-left", label: "Plenty left" },
-];
 
 function applySort(list: CategoryWithData[], sort: Sort): CategoryWithData[] {
   const copy = [...list];
@@ -78,11 +70,20 @@ export function CategoryGrid({
   to,
   viewMode,
 }: CategoryGridProps) {
+  const t = useTranslations("dashboard");
   const [filter, setFilter] = useState<Filter>("all");
   const [sort, setSort] = useState<Sort>("most-spent");
   const [selectedId, setSelectedId] = useState<number | null>(null);
 
-  // Drop categories with no spending AND no explicit budget.
+  const filterLabels: { id: Filter; label: string }[] = [
+    { id: "all", label: t("filterAll") },
+    { id: "needs-action", label: t("filterNeedsAction") },
+    { id: "on-track", label: t("filterOnTrack") },
+    { id: "heads-up", label: t("filterHeadsUp") },
+    { id: "over", label: t("filterOver") },
+    { id: "plenty-left", label: t("filterPlentyLeft") },
+  ];
+
   const activeCategories = useMemo(
     () =>
       categories.filter(
@@ -91,10 +92,6 @@ export function CategoryGrid({
     [categories]
   );
 
-  // In collapsed mode, the "visible" list contains parent rollups + orphan
-  // leaves only (children get hidden — their parent represents them).
-  // In expanded mode, the visible list contains the leaves and we render
-  // section headers per parent client-side.
   const visible = useMemo(() => {
     if (viewMode === "collapsed") {
       const parentIds = new Set(
@@ -104,7 +101,6 @@ export function CategoryGrid({
         (c) => c.isParent || c.parentId == null || !parentIds.has(c.parentId)
       );
     }
-    // expanded: hide synthetic parent rollup rows; show all leaves
     return activeCategories.filter((c) => !c.isParent);
   }, [activeCategories, viewMode]);
 
@@ -150,7 +146,7 @@ export function CategoryGrid({
     const hasUncategorized = periodTotal > 0;
     return (
       <div className="space-y-5">
-        <h2 className="font-serif text-2xl">Budgets</h2>
+        <h2 className="font-serif text-2xl">{t("budgetsHeading")}</h2>
         <div className="rounded-3xl border border-border bg-card p-10 md:p-14">
           <div className="mx-auto max-w-md text-center">
             <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-primary">
@@ -171,21 +167,17 @@ export function CategoryGrid({
             {hasUncategorized ? (
               <>
                 <h3 className="font-serif text-2xl">
-                  Transactions aren&apos;t categorized yet
+                  {t("emptyUncategorizedTitle")}
                 </h3>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  You have spending this month, but none of it is assigned to a
-                  category yet. Enable an AI provider in settings and sync, or
-                  assign categories manually from the transactions table below.
+                  {t("emptyUncategorizedBody")}
                 </p>
               </>
             ) : (
               <>
-                <h3 className="font-serif text-2xl">No spending yet</h3>
+                <h3 className="font-serif text-2xl">{t("emptyNoSpendTitle")}</h3>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  When you sync transactions and they get categorized, each
-                  category will show up here with its own budget, pace, and
-                  recent activity.
+                  {t("emptyNoSpendBody")}
                 </p>
               </>
             )}
@@ -199,9 +191,9 @@ export function CategoryGrid({
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <h2 className="font-serif text-2xl">Budgets</h2>
+          <h2 className="font-serif text-2xl">{t("budgetsHeading")}</h2>
           <div className="flex flex-wrap gap-1.5">
-            {FILTER_LABELS.map((f) => {
+            {filterLabels.map((f) => {
               const active = filter === f.id;
               const count = counts[f.id];
               return (
@@ -226,17 +218,17 @@ export function CategoryGrid({
           </div>
         </div>
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <span>Sort:</span>
+          <span>{t("sortLabel")}</span>
           <Select value={sort} onValueChange={(v) => v && setSort(v as Sort)}>
             <SelectTrigger className="h-8 w-[150px] cursor-pointer border-none bg-transparent transition-colors duration-200 hover:bg-secondary hover:text-foreground">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="budgeted-first">Budgeted first</SelectItem>
-              <SelectItem value="most-spent">Most spent</SelectItem>
-              <SelectItem value="least-spent">Least spent</SelectItem>
-              <SelectItem value="over-pace">Over pace</SelectItem>
-              <SelectItem value="alphabetical">Alphabetical</SelectItem>
+              <SelectItem value="budgeted-first">{t("sortBudgetedFirst")}</SelectItem>
+              <SelectItem value="most-spent">{t("sortMostSpent")}</SelectItem>
+              <SelectItem value="least-spent">{t("sortLeastSpent")}</SelectItem>
+              <SelectItem value="over-pace">{t("sortOverPace")}</SelectItem>
+              <SelectItem value="alphabetical">{t("sortAlphabetical")}</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -244,7 +236,7 @@ export function CategoryGrid({
 
       {filtered.length === 0 ? (
         <div className="rounded-2xl border border-border bg-card p-10 text-center text-sm text-muted-foreground">
-          No categories match this filter.
+          {t("noMatchingFilter")}
         </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">

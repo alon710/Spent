@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 import { Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getSettings } from "@/lib/api";
@@ -12,6 +13,7 @@ interface AINotConnectedBannerProps {
 }
 
 export function AINotConnectedBanner({ className }: AINotConnectedBannerProps) {
+  const t = useTranslations("aiBanner");
   const { data } = useQuery({
     queryKey: ["settings"],
     queryFn: getSettings,
@@ -47,19 +49,16 @@ export function AINotConnectedBanner({ className }: AINotConnectedBannerProps) {
 
       <div className="min-w-0 flex-1">
         <div className="font-serif text-base leading-tight tracking-tight">
-          AI not connected
+          {t("notConnected")}
         </div>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Transactions won&apos;t be auto-categorized, so budgets will appear
-          empty until you connect an AI provider.
-        </p>
+        <p className="mt-1 text-sm text-muted-foreground">{t("description")}</p>
       </div>
 
       <Button
         size="sm"
         nativeButton={false}
         className="self-start sm:self-auto"
-        render={<Link href="/settings/ai">Connect AI</Link>}
+        render={<Link href="/settings/ai">{t("connectAi")}</Link>}
       />
     </div>
   );

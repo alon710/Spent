@@ -218,7 +218,7 @@ export function BankStep({ onComplete }: BankStepProps) {
               </p>
             </header>
 
-            <div className="w-full space-y-2 text-left">
+            <div className="w-full space-y-2 text-start">
               <div className="text-[9px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
                 Connected · {integrations.length}
               </div>
@@ -320,7 +320,7 @@ function PickerCard({
   onPick: (id: string) => void;
 }) {
   return (
-    <div className="w-full rounded-2xl border border-border bg-card p-5 text-left shadow-sm">
+    <div className="w-full rounded-2xl border border-border bg-card p-5 text-start shadow-sm">
       <div className="mb-3 flex items-baseline justify-between">
         <div className="text-[11px] font-bold tracking-tight">
           Supported providers · {total}
@@ -349,7 +349,7 @@ function PickerCard({
                 disabled={isDisabled}
                 onClick={() => !isDisabled && onPick(p.id)}
                 whileHover={!isDisabled ? { x: 1 } : undefined}
-                className={`flex items-center gap-3 rounded-lg p-2.5 text-left transition-colors ${
+                className={`flex items-center gap-3 rounded-lg p-2.5 text-start transition-colors ${
                   isDisabled
                     ? "cursor-not-allowed opacity-50"
                     : "cursor-pointer hover:bg-muted/40"
@@ -378,7 +378,7 @@ function PickerCard({
                 <KindTag kind={p.kind} />
                 <span
                   aria-hidden
-                  className="ml-1 text-base leading-none text-muted-foreground"
+                  className="ms-1 text-base leading-none text-muted-foreground"
                 >
                   ›
                 </span>
@@ -528,7 +528,7 @@ function CredentialForm({
   };
 
   return (
-    <div className="w-full rounded-2xl border border-border bg-card p-6 text-left shadow-sm">
+    <div className="w-full rounded-2xl border border-border bg-card p-6 text-start shadow-sm">
       <div className="mb-5 flex items-center gap-3 border-b border-border/60 pb-4">
         <ProviderBadge
           color={info.color}

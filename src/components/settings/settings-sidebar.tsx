@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 import {
   SlidersHorizontal,
   Palette,
@@ -14,63 +15,68 @@ import { cn } from "@/lib/utils";
 
 interface NavItem {
   href: string;
-  label: string;
+  labelKey: string;
   Icon: React.ComponentType<{ className?: string }>;
   match: (p: string) => boolean;
 }
 
-const GROUPS: { title: string; items: NavItem[] }[] = [
+interface NavGroup {
+  titleKey: string;
+  items: NavItem[];
+}
+
+const GROUPS: NavGroup[] = [
   {
-    title: "General",
+    titleKey: "groupGeneral",
     items: [
       {
         href: "/settings/general",
-        label: "General",
+        labelKey: "general",
         Icon: SlidersHorizontal,
         match: (p) => p === "/settings/general" || p === "/settings",
       },
       {
         href: "/settings/appearance",
-        label: "Appearance",
+        labelKey: "appearance",
         Icon: Palette,
         match: (p) => p.startsWith("/settings/appearance"),
       },
     ],
   },
   {
-    title: "Connections",
+    titleKey: "groupConnections",
     items: [
       {
         href: "/settings/bank",
-        label: "Bank accounts",
+        labelKey: "bank",
         Icon: Landmark,
         match: (p) => p.startsWith("/settings/bank"),
       },
       {
         href: "/settings/ai",
-        label: "AI provider",
+        labelKey: "ai",
         Icon: Sparkles,
         match: (p) => p.startsWith("/settings/ai"),
       },
     ],
   },
   {
-    title: "Categories",
+    titleKey: "groupCategories",
     items: [
       {
         href: "/settings/categories",
-        label: "Categories",
+        labelKey: "categories",
         Icon: Layers,
         match: (p) => p.startsWith("/settings/categories"),
       },
     ],
   },
   {
-    title: "Advanced",
+    titleKey: "groupAdvanced",
     items: [
       {
         href: "/settings/data",
-        label: "Data & privacy",
+        labelKey: "data",
         Icon: ShieldAlert,
         match: (p) => p.startsWith("/settings/data"),
       },
@@ -80,21 +86,22 @@ const GROUPS: { title: string; items: NavItem[] }[] = [
 
 export function SettingsSidebar() {
   const pathname = usePathname();
+  const t = useTranslations("settings.sidebar");
   return (
-    <aside className="hidden w-56 shrink-0 border-r border-border/40 bg-card/30 md:flex md:flex-col">
+    <aside className="hidden w-56 shrink-0 border-e border-border/40 bg-card/30 md:flex md:flex-col">
       <div className="px-5 pt-6 pb-3">
         <div className="font-serif text-xl leading-none tracking-tight">
-          Settings
+          {t("title")}
         </div>
         <div className="mt-1 text-[11px] text-muted-foreground">
-          Tune Spent to fit you.
+          {t("subtitle")}
         </div>
       </div>
       <nav className="flex-1 overflow-y-auto px-2 pb-6">
         {GROUPS.map((group) => (
-          <div key={group.title} className="mt-3">
+          <div key={group.titleKey} className="mt-3">
             <div className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground/70">
-              {group.title}
+              {t(group.titleKey)}
             </div>
             <ul className="space-y-0.5">
               {group.items.map((item) => {
@@ -111,7 +118,7 @@ export function SettingsSidebar() {
                       )}
                     >
                       <item.Icon className="h-4 w-4 shrink-0 opacity-80" />
-                      <span className="truncate">{item.label}</span>
+                      <span className="truncate">{t(item.labelKey)}</span>
                     </Link>
                   </li>
                 );
@@ -126,6 +133,7 @@ export function SettingsSidebar() {
 
 export function SettingsMobileNav() {
   const pathname = usePathname();
+  const t = useTranslations("settings.sidebar");
   const allItems = GROUPS.flatMap((g) => g.items);
   return (
     <div className="-mx-4 overflow-x-auto border-b border-border/40 px-4 md:hidden">
@@ -144,7 +152,7 @@ export function SettingsMobileNav() {
               )}
             >
               <item.Icon className="h-3.5 w-3.5" />
-              {item.label}
+              {t(item.labelKey)}
             </Link>
           );
         })}

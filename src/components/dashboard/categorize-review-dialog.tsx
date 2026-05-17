@@ -208,7 +208,7 @@ export function CategorizeReviewDialog({
         </ScrollArea>
 
         <DialogFooter className="border-t bg-muted/30 px-6 py-4">
-          <div className="mr-auto flex flex-col gap-0.5 text-xs text-muted-foreground">
+          <div className="me-auto flex flex-col gap-0.5 text-xs text-muted-foreground">
             <div>
               <span className="font-medium text-foreground">
                 {stats.toExisting + stats.toNew}

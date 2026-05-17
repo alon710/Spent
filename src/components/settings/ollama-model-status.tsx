@@ -225,7 +225,7 @@ function ModelStatusInner({
             <ExternalLink className="size-3.5" />
           </a>
         </div>
-        <ol className="space-y-1 pl-5 text-xs text-muted-foreground list-decimal marker:text-muted-foreground/70">
+        <ol className="space-y-1 ps-5 text-xs text-muted-foreground list-decimal marker:text-muted-foreground/70">
           <li>Download and run the installer from ollama.com.</li>
           <li>Launch Ollama (it runs in the menu bar or system tray).</li>
           <li>

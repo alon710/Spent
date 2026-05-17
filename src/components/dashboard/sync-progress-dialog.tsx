@@ -298,7 +298,7 @@ function OtpInputArea({
         {submitting ? "Submitting…" : "Submit"}
       </Button>
       {error && (
-        <p className="absolute -bottom-5 left-0 text-[11px] text-destructive">
+        <p className="absolute -bottom-5 start-0 text-[11px] text-destructive">
           {error}
         </p>
       )}

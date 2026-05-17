@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Trash2 } from "lucide-react";
 import {
@@ -38,11 +39,13 @@ function useActiveWorkspace() {
 }
 
 export function WorkspaceNameCard() {
+  const t = useTranslations("settings.workspace");
+  const tCommon = useTranslations("common");
   const { active } = useActiveWorkspace();
   if (!active) {
     return (
-      <SettingCard title="Workspace name">
-        <div className="text-sm text-muted-foreground">Loading…</div>
+      <SettingCard title={t("nameTitle")}>
+        <div className="text-sm text-muted-foreground">{tCommon("loading")}</div>
       </SettingCard>
     );
   }
@@ -50,6 +53,8 @@ export function WorkspaceNameCard() {
 }
 
 function WorkspaceNameCardInner({ workspace }: { workspace: Workspace }) {
+  const t = useTranslations("settings.workspace");
+  const tCommon = useTranslations("common");
   const queryClient = useQueryClient();
   const [name, setName] = useState(workspace.name);
 
@@ -57,23 +62,20 @@ function WorkspaceNameCardInner({ workspace }: { workspace: Workspace }) {
     mutationFn: (n: string) => renameWorkspace(workspace.id, n),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["workspaces"] });
-      toast.success("Workspace renamed");
+      toast.success(t("renamed"));
     },
     onError: (err) => {
-      toast.error(err instanceof Error ? err.message : "Rename failed");
+      toast.error(err instanceof Error ? err.message : t("renameFailed"));
     },
   });
 
   const dirty = name.trim() !== workspace.name && name.trim().length > 0;
 
   return (
-    <SettingCard
-      title="Workspace name"
-      description="Shown in the sidebar switcher. Visible only to you."
-    >
+    <SettingCard title={t("nameTitle")} description={t("nameDescription")}>
       <div className="flex flex-wrap items-end gap-3">
         <div className="flex-1 min-w-[220px] space-y-1.5">
-          <Label htmlFor="workspace-rename">Name</Label>
+          <Label htmlFor="workspace-rename">{t("nameLabel")}</Label>
           <Input
             id="workspace-rename"
             value={name}
@@ -81,14 +83,14 @@ function WorkspaceNameCardInner({ workspace }: { workspace: Workspace }) {
             maxLength={60}
           />
           <p className="text-[11px] text-muted-foreground">
-            Slug: <code className="rounded bg-muted px-1">{workspace.slug}</code>
+            {t("slugLabel")} <code className="rounded bg-muted px-1">{workspace.slug}</code>
           </p>
         </div>
         <Button
           onClick={() => rename.mutate(name.trim())}
           disabled={!dirty || rename.isPending}
         >
-          {rename.isPending ? "Saving…" : "Save"}
+          {rename.isPending ? tCommon("saving") : tCommon("save")}
         </Button>
       </div>
     </SettingCard>
@@ -121,6 +123,8 @@ function DangerCard({
   disabled: boolean;
   onDeleted: (remainingId: number) => void;
 }) {
+  const t = useTranslations("settings.workspace");
+  const tCommon = useTranslations("common");
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
 
@@ -134,30 +138,27 @@ function DangerCard({
       const next = list.find((w) => w.id !== workspace.id);
       if (next) onDeleted(next.id);
       setOpen(false);
-      toast.success(`"${workspace.name}" deleted`);
+      toast.success(t("deletedToast", { name: workspace.name }));
     },
     onError: (err) => {
-      toast.error(err instanceof Error ? err.message : "Delete failed");
+      toast.error(err instanceof Error ? err.message : t("deleteFailed"));
     },
   });
 
   return (
     <>
-      <SettingCard
-        title="Delete this workspace"
-        description="Permanently removes this workspace and every bank connection, transaction, category, and budget inside it. The other workspaces are untouched."
-      >
+      <SettingCard title={t("dangerTitle")} description={t("dangerDescription")}>
         <Button
           variant="destructive"
           onClick={() => setOpen(true)}
           disabled={disabled}
         >
-          <Trash2 className="mr-2 size-4" />
-          Delete workspace
+          <Trash2 className="me-2 size-4" />
+          {t("deleteButton")}
         </Button>
         {disabled ? (
           <p className="mt-2 text-xs text-muted-foreground">
-            You can&apos;t delete your only workspace. Create another one first.
+            {t("lastOneHint")}
           </p>
         ) : null}
       </SettingCard>
@@ -165,23 +166,19 @@ function DangerCard({
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete &ldquo;{workspace.name}&rdquo;?</DialogTitle>
-            <DialogDescription>
-              Every transaction, category, budget, and saved bank credential in
-              this workspace will be permanently removed. This can&apos;t be
-              undone.
-            </DialogDescription>
+            <DialogTitle>{t("confirmTitle", { name: workspace.name })}</DialogTitle>
+            <DialogDescription>{t("confirmDescription")}</DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>
-              Cancel
+              {tCommon("cancel")}
             </Button>
             <Button
               variant="destructive"
               onClick={() => del.mutate()}
               disabled={del.isPending}
             >
-              {del.isPending ? "Deleting…" : "Delete workspace"}
+              {del.isPending ? tCommon("deleting") : t("deleteButton")}
             </Button>
           </DialogFooter>
         </DialogContent>

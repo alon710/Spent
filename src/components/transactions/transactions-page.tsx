@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useLocale, useTranslations } from "next-intl";
 import { PageHeader } from "@/components/layout/app-shell";
 import { TransactionsTable } from "@/components/dashboard/transactions-table";
 import { PeriodSelector } from "@/components/dashboard/period-selector";
@@ -19,26 +20,25 @@ import {
   formatMonthLabel,
   getMonthRange,
 } from "@/lib/formatters";
-
-const FILTER_OPTIONS: { value: TransactionKindFilter; label: string }[] = [
-  { value: "all", label: "All activity" },
-  { value: "income", label: "Income" },
-  { value: "expense", label: "Expenses" },
-];
+import type { Locale } from "@/i18n/routing";
 
 export function TransactionsPage() {
+  const t = useTranslations("transactions");
+  const locale = useLocale() as Locale;
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<number | undefined>();
   const [page, setPage] = useState(0);
   const [kind, setKind] = useState<TransactionKindFilter>("all");
 
+  const filterOptions: { value: TransactionKindFilter; label: string }[] = [
+    { value: "all", label: t("filterAll") },
+    { value: "income", label: t("filterIncome") },
+    { value: "expense", label: t("filterExpenses") },
+  ];
+
   const { from, to } = getMonthRange(selectedDate);
 
-  // Resolve the user-selected category filter into either a single leaf id
-  // (passed as `category`) or, when a parent is picked, the set of its
-  // children (passed as `categoryIds`). Parents never directly carry
-  // transactions, so filtering by parent id alone would yield zero rows.
   const allCategoriesQuery = useQuery({
     queryKey: ["categories"],
     queryFn: () => getCategories(),
@@ -83,14 +83,16 @@ export function TransactionsPage() {
       kind === "income" ? getCategories("income") : getCategories("expense"),
   });
 
+  const monthLabel = formatMonthLabel(selectedDate, locale);
+
   return (
     <>
       <PageHeader
-        title="Transactions"
-        meta={formatMonthLabel(selectedDate)}
+        title={t("pageTitle")}
+        meta={monthLabel}
         actions={
           <PeriodSelector
-            label={formatMonthLabel(selectedDate)}
+            label={monthLabel}
             onPrev={() => setSelectedDate((d) => addMonths(d, -1))}
             onNext={() => setSelectedDate((d) => addMonths(d, 1))}
           />
@@ -107,7 +109,7 @@ export function TransactionsPage() {
         />
 
         <div className="flex flex-wrap items-center gap-1.5 rounded-full border border-border bg-card p-1 w-fit">
-          {FILTER_OPTIONS.map((opt) => {
+          {filterOptions.map((opt) => {
             const active = kind === opt.value;
             return (
               <button

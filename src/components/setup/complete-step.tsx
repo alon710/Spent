@@ -89,7 +89,7 @@ export function CompleteStep({ onFinish }: CompleteStepProps) {
         initial={{ y: 12, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ delay: 0.3 }}
-        className="rounded-2xl bg-card p-5 text-left"
+        className="rounded-2xl bg-card p-5 text-start"
       >
         <div className="mb-3 text-[11px] font-bold uppercase tracking-[0.08em] text-muted-foreground">
           Setup summary
@@ -106,7 +106,7 @@ export function CompleteStep({ onFinish }: CompleteStepProps) {
               return (
                 <span
                   key={integ.provider}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-muted py-0.5 pl-0.5 pr-2.5 text-xs"
+                  className="inline-flex items-center gap-1.5 rounded-full bg-muted py-0.5 ps-0.5 pe-2.5 text-xs"
                 >
                   <ProviderBadge
                     color={info.color}
@@ -179,7 +179,7 @@ function ImportProgress() {
       initial={{ y: 12, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ delay: 0.4 }}
-      className="rounded-2xl bg-card p-4 text-left"
+      className="rounded-2xl bg-card p-4 text-start"
     >
       {steps.map((s, i) => (
         <div
@@ -244,7 +244,7 @@ function ImportProgress() {
             {s.label}
           </span>
           {s.state === "active" && (
-            <span className="ml-auto font-mono text-[11px] text-muted-foreground">
+            <span className="ms-auto font-mono text-[11px] text-muted-foreground">
               working...
             </span>
           )}

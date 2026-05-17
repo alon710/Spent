@@ -434,7 +434,7 @@ function DetailContent({ data }: { data: CategoryDetail }) {
                             onClick={() => handleChangeCategory(t.id, cat.id)}
                           >
                             <div
-                              className="mr-2 h-2 w-2 rounded-full"
+                              className="me-2 h-2 w-2 rounded-full"
                               style={{ backgroundColor: cat.color }}
                             />
                             {cat.name}
@@ -499,7 +499,7 @@ function ChildrenBreakdownSection({
                 <span className="truncate text-sm font-medium">{c.name}</span>
               </div>
               <div className="flex shrink-0 items-center gap-3 text-xs tabular-nums">
-                <div className="text-right">
+                <div className="text-end">
                   <div className="font-medium">{formatCurrency(c.spent)}</div>
                   <div className="text-[10px] text-muted-foreground">
                     {c.budget > 0
@@ -597,7 +597,7 @@ function NeedsReviewSection({
                       onClick={() => onChange(t.id, cat.id)}
                     >
                       <div
-                        className="mr-2 h-2 w-2 rounded-full"
+                        className="me-2 h-2 w-2 rounded-full"
                         style={{ backgroundColor: cat.color }}
                       />
                       {cat.name}
@@ -731,7 +731,7 @@ function BudgetStat({
         <button
           type="button"
           onClick={startEdit}
-          className="group mt-0.5 flex w-full cursor-pointer items-center gap-1.5 rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          className="group mt-0.5 flex w-full cursor-pointer items-center gap-1.5 rounded-md text-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           aria-label="Edit budget amount"
         >
           <span className="font-serif text-xl tabular-nums">

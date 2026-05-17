@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useLocale, useTranslations } from "next-intl";
 import {
   Card,
   CardContent,
@@ -48,27 +49,11 @@ import {
   approveTransactionCategory,
   getCategories,
 } from "@/lib/api";
-import type {
-  TransactionWithCategory,
-  Category,
-} from "@/lib/types";
+import { translateCategoryName } from "@/lib/i18n-data";
+import type { TransactionWithCategory, Category } from "@/lib/types";
+import type { Locale } from "@/i18n/routing";
 
 type Kind = "expense" | "income" | "transfer";
-
-const OTHER_KINDS: Record<Kind, Array<{ value: Kind; label: string }>> = {
-  expense: [
-    { value: "income", label: "Mark as income" },
-    { value: "transfer", label: "Mark as transfer" },
-  ],
-  income: [
-    { value: "expense", label: "Mark as expense" },
-    { value: "transfer", label: "Mark as transfer" },
-  ],
-  transfer: [
-    { value: "expense", label: "Mark as expense" },
-    { value: "income", label: "Mark as income" },
-  ],
-};
 
 interface TransactionsTableProps {
   transactions: TransactionWithCategory[];
@@ -97,9 +82,27 @@ export function TransactionsTable({
   page,
   onPageChange,
 }: TransactionsTableProps) {
+  const t = useTranslations("transactions");
+  const tCat = useTranslations("categoriesSeeded");
+  const locale = useLocale() as Locale;
   const queryClient = useQueryClient();
   const [updatingId, setUpdatingId] = useState<number | null>(null);
   const totalPages = Math.ceil(total / PAGE_SIZE);
+
+  const otherKinds: Record<Kind, Array<{ value: Kind; label: string }>> = {
+    expense: [
+      { value: "income", label: t("markAsIncome") },
+      { value: "transfer", label: t("markAsTransfer") },
+    ],
+    income: [
+      { value: "expense", label: t("markAsExpense") },
+      { value: "transfer", label: t("markAsTransfer") },
+    ],
+    transfer: [
+      { value: "expense", label: t("markAsExpense") },
+      { value: "income", label: t("markAsIncome") },
+    ],
+  };
 
   const handleCategoryChange = async (txnId: number, categoryId: number) => {
     setUpdatingId(txnId);
@@ -158,11 +161,11 @@ export function TransactionsTable({
       <CardHeader>
         <div className="flex items-center justify-between gap-4">
           <CardTitle className="font-serif text-2xl font-normal">
-            Transactions
+            {t("pageTitle")}
           </CardTitle>
           <div className="flex items-center gap-2">
             <Input
-              placeholder="Search..."
+              placeholder={t("search")}
               value={search}
               onChange={(e) => {
                 onSearchChange(e.target.value);
@@ -179,13 +182,11 @@ export function TransactionsTable({
               }}
             >
               <SelectTrigger className="h-8 w-[160px]">
-                <SelectValue placeholder="All categories" />
+                <SelectValue placeholder={t("allCategories")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All categories</SelectItem>
+                <SelectItem value="all">{t("allCategories")}</SelectItem>
                 {(() => {
-                  // Group children under their parents so the dropdown reads
-                  // as a tree. Parents are bolded; children are indented.
                   const parentIds = new Set(
                     categories
                       .map((c) => c.parentId)
@@ -205,6 +206,7 @@ export function TransactionsTable({
                   const nodes: React.ReactNode[] = [];
                   for (const top of tops) {
                     const kids = childrenByParent.get(top.id) ?? [];
+                    const topName = translateCategoryName(top.name, tCat);
                     if (parentIds.has(top.id)) {
                       nodes.push(
                         <SelectItem key={top.id} value={String(top.id)}>
@@ -213,7 +215,7 @@ export function TransactionsTable({
                               className="h-2 w-2 rounded-full"
                               style={{ backgroundColor: top.color }}
                             />
-                            {top.name}
+                            {topName}
                           </div>
                         </SelectItem>
                       );
@@ -223,12 +225,12 @@ export function TransactionsTable({
                             key={child.id}
                             value={String(child.id)}
                           >
-                            <div className="flex items-center gap-2 pl-3">
+                            <div className="flex items-center gap-2 ps-3">
                               <div
                                 className="h-2 w-2 rounded-full"
                                 style={{ backgroundColor: child.color }}
                               />
-                              {child.name}
+                              {translateCategoryName(child.name, tCat)}
                             </div>
                           </SelectItem>
                         );
@@ -241,7 +243,7 @@ export function TransactionsTable({
                               className="h-2 w-2 rounded-full"
                               style={{ backgroundColor: top.color }}
                             />
-                            {top.name}
+                            {topName}
                           </div>
                         </SelectItem>
                       );
@@ -264,8 +266,8 @@ export function TransactionsTable({
         ) : transactions.length === 0 ? (
           <div className="py-12 text-center text-sm text-muted-foreground">
             {search || categoryFilter
-              ? "No transactions match your filters."
-              : "No transactions yet. Click Sync Now to pull your data."}
+              ? t("emptyWithFilters")
+              : t("emptyNoData")}
           </div>
         ) : (
           <>
@@ -273,11 +275,11 @@ export function TransactionsTable({
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-[32px]" />
-                  <TableHead className="w-[100px]">Date</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead className="w-[150px]">Category</TableHead>
-                  <TableHead className="w-[120px] text-right">
-                    Amount
+                  <TableHead className="w-[100px]">{t("headerDate")}</TableHead>
+                  <TableHead>{t("headerDescription")}</TableHead>
+                  <TableHead className="w-[150px]">{t("headerCategory")}</TableHead>
+                  <TableHead className="w-[120px] text-end">
+                    {t("headerAmount")}
                   </TableHead>
                   <TableHead className="w-[40px]" />
                 </TableRow>
@@ -289,152 +291,157 @@ export function TransactionsTable({
                     ? "var(--status-on-track)"
                     : "var(--status-over)";
                   const categoryKind: Kind = isIncome ? "income" : "expense";
+                  const categoryName = txn.categoryName
+                    ? translateCategoryName(txn.categoryName, tCat)
+                    : t("rowUncategorized");
                   return (
-                  <TableRow
-                    key={txn.id}
-                    className="transition-colors duration-200 hover:bg-muted/50"
-                  >
-                    <TableCell>
-                      <div style={{ color: directionColor }}>
-                        {isIncome ? (
-                          <ArrowUpRight className="h-4 w-4" />
-                        ) : (
-                          <ArrowDownRight className="h-4 w-4" />
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-sm tabular-nums text-muted-foreground">
-                      {formatDate(txn.date)}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <div className="font-medium">{txn.description}</div>
-                        {txn.needsReview && (
-                          <span
-                            className="inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-medium"
-                            style={{
-                              backgroundColor:
-                                "color-mix(in oklch, var(--status-heads-up) 18%, transparent)",
-                              color: "var(--status-heads-up)",
-                            }}
-                            title={
-                              txn.aiConfidence != null
-                                ? `AI confidence: ${txn.aiConfidence}/7 — review`
-                                : "AI wasn't sure — review"
-                            }
-                          >
-                            <HelpCircle className="h-3 w-3" />
-                            Review
-                            {txn.aiConfidence != null && (
-                              <span className="ml-0.5 tabular-nums">
-                                {txn.aiConfidence}/7
-                              </span>
-                            )}
-                          </span>
-                        )}
-                      </div>
-                      {txn.memo && (
-                        <div className="text-xs text-muted-foreground">
-                          {txn.memo}
+                    <TableRow
+                      key={txn.id}
+                      className="transition-colors duration-200 hover:bg-muted/50"
+                    >
+                      <TableCell>
+                        <div style={{ color: directionColor }}>
+                          {isIncome ? (
+                            <ArrowUpRight className="h-4 w-4" />
+                          ) : (
+                            <ArrowDownRight className="h-4 w-4" />
+                          )}
                         </div>
-                      )}
-                      {txn.type === "installments" &&
-                        txn.installmentNumber &&
-                        txn.installmentTotal && (
-                          <div className="text-xs text-muted-foreground">
-                            Payment {txn.installmentNumber} of{" "}
-                            {txn.installmentTotal}
-                          </div>
-                        )}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1.5">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger
-                            className="inline-flex"
-                            disabled={updatingId === txn.id}
-                          >
-                            <Badge
-                              variant="outline"
-                              className="cursor-pointer transition-colors hover:bg-accent"
-                              style={
-                                txn.categoryColor
-                                  ? {
-                                      borderColor: txn.categoryColor + "40",
-                                      backgroundColor: txn.categoryColor + "15",
-                                      color: txn.categoryColor,
-                                    }
-                                  : undefined
+                      </TableCell>
+                      <TableCell className="text-sm tabular-nums text-muted-foreground">
+                        {formatDate(txn.date)}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <div className="font-medium">{txn.description}</div>
+                          {txn.needsReview && (
+                            <span
+                              className="inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-medium"
+                              style={{
+                                backgroundColor:
+                                  "color-mix(in oklch, var(--status-heads-up) 18%, transparent)",
+                                color: "var(--status-heads-up)",
+                              }}
+                              title={
+                                txn.aiConfidence != null
+                                  ? t("rowReviewTooltipConfidence", { score: txn.aiConfidence })
+                                  : t("rowReviewTooltipUnsure")
                               }
                             >
-                              {txn.categoryName ?? "Uncategorized"}
-                            </Badge>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="start">
-                            {categoriesForKind(categoryKind).map((cat) => (
-                              <DropdownMenuItem
-                                key={cat.id}
-                                onClick={() =>
-                                  handleCategoryChange(txn.id, cat.id)
+                              <HelpCircle className="h-3 w-3" />
+                              {t("rowReview")}
+                              {txn.aiConfidence != null && (
+                                <span className="ms-0.5 tabular-nums">
+                                  {txn.aiConfidence}/7
+                                </span>
+                              )}
+                            </span>
+                          )}
+                        </div>
+                        {txn.memo && (
+                          <div className="text-xs text-muted-foreground">
+                            {txn.memo}
+                          </div>
+                        )}
+                        {txn.type === "installments" &&
+                          txn.installmentNumber &&
+                          txn.installmentTotal && (
+                            <div className="text-xs text-muted-foreground">
+                              {t("rowInstallment", {
+                                n: txn.installmentNumber,
+                                total: txn.installmentTotal,
+                              })}
+                            </div>
+                          )}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1.5">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger
+                              className="inline-flex"
+                              disabled={updatingId === txn.id}
+                            >
+                              <Badge
+                                variant="outline"
+                                className="cursor-pointer transition-colors hover:bg-accent"
+                                style={
+                                  txn.categoryColor
+                                    ? {
+                                        borderColor: txn.categoryColor + "40",
+                                        backgroundColor: txn.categoryColor + "15",
+                                        color: txn.categoryColor,
+                                      }
+                                    : undefined
                                 }
                               >
-                                <div
-                                  className="mr-2 h-2 w-2 rounded-full"
-                                  style={{ backgroundColor: cat.color }}
-                                />
-                                {cat.name}
+                                {categoryName}
+                              </Badge>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="start">
+                              {categoriesForKind(categoryKind).map((cat) => (
+                                <DropdownMenuItem
+                                  key={cat.id}
+                                  onClick={() =>
+                                    handleCategoryChange(txn.id, cat.id)
+                                  }
+                                >
+                                  <div
+                                    className="me-2 h-2 w-2 rounded-full"
+                                    style={{ backgroundColor: cat.color }}
+                                  />
+                                  {translateCategoryName(cat.name, tCat)}
+                                </DropdownMenuItem>
+                              ))}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                          {txn.needsReview && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleApprove(txn.id)}
+                              disabled={updatingId === txn.id}
+                              className="h-6 gap-1 px-2 text-[11px] font-medium"
+                              style={{
+                                borderColor:
+                                  "color-mix(in oklch, var(--status-on-track) 35%, transparent)",
+                                color: "var(--status-on-track)",
+                              }}
+                              title={t("rowApproveTooltip")}
+                            >
+                              <Check className="h-3 w-3" />
+                              {t("rowApprove")}
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell
+                        className="text-end font-medium tabular-nums"
+                        style={{ color: directionColor }}
+                      >
+                        {formatCurrency(txn.chargedAmount, "ILS", locale)}
+                      </TableCell>
+                      <TableCell className="text-end">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger
+                            className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+                            disabled={updatingId === txn.id}
+                            aria-label={t("rowActions")}
+                          >
+                            <MoreHorizontal className="h-4 w-4" />
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            {otherKinds[txn.kind].map((opt) => (
+                              <DropdownMenuItem
+                                key={opt.value}
+                                onClick={() => handleKindChange(txn.id, opt.value)}
+                              >
+                                {opt.label}
                               </DropdownMenuItem>
                             ))}
                           </DropdownMenuContent>
                         </DropdownMenu>
-                        {txn.needsReview && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleApprove(txn.id)}
-                            disabled={updatingId === txn.id}
-                            className="h-6 gap-1 px-2 text-[11px] font-medium"
-                            style={{
-                              borderColor:
-                                "color-mix(in oklch, var(--status-on-track) 35%, transparent)",
-                              color: "var(--status-on-track)",
-                            }}
-                            title="Keep this category and remember it for next time"
-                          >
-                            <Check className="h-3 w-3" />
-                            Approve
-                          </Button>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell
-                      className="text-right font-medium tabular-nums"
-                      style={{ color: directionColor }}
-                    >
-                      {formatCurrency(txn.chargedAmount)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger
-                          className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
-                          disabled={updatingId === txn.id}
-                          aria-label="Row actions"
-                        >
-                          <MoreHorizontal className="h-4 w-4" />
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          {OTHER_KINDS[txn.kind].map((opt) => (
-                            <DropdownMenuItem
-                              key={opt.value}
-                              onClick={() => handleKindChange(txn.id, opt.value)}
-                            >
-                              {opt.label}
-                            </DropdownMenuItem>
-                          ))}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
+                      </TableCell>
+                    </TableRow>
                   );
                 })}
               </TableBody>
@@ -443,8 +450,11 @@ export function TransactionsTable({
             {totalPages > 1 && (
               <div className="flex items-center justify-between pt-4">
                 <span className="text-xs text-muted-foreground">
-                  {page * PAGE_SIZE + 1} to{" "}
-                  {Math.min((page + 1) * PAGE_SIZE, total)} of {total}
+                  {t("paginationRange", {
+                    from: page * PAGE_SIZE + 1,
+                    to: Math.min((page + 1) * PAGE_SIZE, total),
+                    total,
+                  })}
                 </span>
                 <div className="flex gap-1">
                   <Button
@@ -453,7 +463,7 @@ export function TransactionsTable({
                     onClick={() => onPageChange(page - 1)}
                     disabled={page === 0}
                   >
-                    Previous
+                    {t("previous")}
                   </Button>
                   <Button
                     variant="outline"
@@ -461,7 +471,7 @@ export function TransactionsTable({
                     onClick={() => onPageChange(page + 1)}
                     disabled={page >= totalPages - 1}
                   >
-                    Next
+                    {t("next")}
                   </Button>
                 </div>
               </div>

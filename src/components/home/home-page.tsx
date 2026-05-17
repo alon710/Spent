@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 import { getActivity, getHome } from "@/lib/api";
 import { PageHeader } from "@/components/layout/app-shell";
 import { SyncButton } from "@/components/dashboard/sync-button";
@@ -31,6 +32,20 @@ export function HomePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [autoStartSync] = useState(() => searchParams.get("sync") === "1");
+  const t = useTranslations("home");
+  const skeletonLabels = useMemo<Record<HomeSection, string>>(
+    () => ({
+      thisMonth: t("thisMonthLabel", { month: "" }).trim() || t("topCategoriesTitle"),
+      cashFlow: t("cashFlowTitle"),
+      categorySnapshot: t("topCategoriesTitle"),
+      historicalTrend: t("last8Months"),
+      recentTransactions: t("recentActivity"),
+      topMerchants: t("topMerchants"),
+      needsAttention: t("needsAttention"),
+      bankHealth: t("bankConnections"),
+    }),
+    [t]
+  );
 
   useEffect(() => {
     if (autoStartSync) {
@@ -75,7 +90,7 @@ export function HomePage() {
   return (
     <>
       <PageHeader
-        title="Home"
+        title={t("pageTitle")}
         actions={
           <>
             <SyncStatusPill
@@ -100,14 +115,14 @@ export function HomePage() {
         />
         <AINotConnectedBanner className="mb-4 md:mb-5 lg:mb-6" />
         <div className="grid grid-cols-12 gap-4 md:gap-5 lg:gap-6">
-          {renderSection("thisMonth", data, isLoading, isError, ROW_1)}
-          {renderSection("cashFlow", data, isLoading, isError, ROW_1_SIDE)}
-          {renderSection("categorySnapshot", data, isLoading, isError, ROW_2)}
-          {renderSection("historicalTrend", data, isLoading, isError, ROW_2_SIDE)}
-          {renderSection("recentTransactions", data, isLoading, isError, ROW_2)}
-          {renderSection("topMerchants", data, isLoading, isError, ROW_2_SIDE)}
-          {renderSection("needsAttention", data, isLoading, isError, ROW_2)}
-          {renderSection("bankHealth", data, isLoading, isError, ROW_2_SIDE)}
+          {renderSection("thisMonth", data, isLoading, isError, ROW_1, skeletonLabels)}
+          {renderSection("cashFlow", data, isLoading, isError, ROW_1_SIDE, skeletonLabels)}
+          {renderSection("categorySnapshot", data, isLoading, isError, ROW_2, skeletonLabels)}
+          {renderSection("historicalTrend", data, isLoading, isError, ROW_2_SIDE, skeletonLabels)}
+          {renderSection("recentTransactions", data, isLoading, isError, ROW_2, skeletonLabels)}
+          {renderSection("topMerchants", data, isLoading, isError, ROW_2_SIDE, skeletonLabels)}
+          {renderSection("needsAttention", data, isLoading, isError, ROW_2, skeletonLabels)}
+          {renderSection("bankHealth", data, isLoading, isError, ROW_2_SIDE, skeletonLabels)}
         </div>
       </div>
     </>
@@ -119,12 +134,13 @@ function renderSection(
   data: HomePayload | undefined,
   isLoading: boolean,
   isError: boolean,
-  spanClass: string
+  spanClass: string,
+  skeletonLabels: Record<HomeSection, string>
 ) {
   if (isLoading || !data) {
     return (
       <div key={section} className={spanClass}>
-        <CardSkeleton label={SKELETON_LABELS[section]} height={SKELETON_HEIGHTS[section]} />
+        <CardSkeleton label={skeletonLabels[section]} height={SKELETON_HEIGHTS[section]} />
       </div>
     );
   }
@@ -135,7 +151,7 @@ function renderSection(
   if (sectionHasError) {
     return (
       <div key={section} className={spanClass}>
-        <CardError label={SKELETON_LABELS[section]} />
+        <CardError label={skeletonLabels[section]} />
       </div>
     );
   }
@@ -179,17 +195,6 @@ function renderCard(section: HomeSection, data: HomePayload) {
       ) : null;
   }
 }
-
-const SKELETON_LABELS: Record<HomeSection, string> = {
-  thisMonth: "This month",
-  cashFlow: "Cash flow",
-  categorySnapshot: "Top categories",
-  historicalTrend: "Last 8 months",
-  recentTransactions: "Recent activity",
-  topMerchants: "Top merchants",
-  needsAttention: "Needs attention",
-  bankHealth: "Bank connections",
-};
 
 const SKELETON_HEIGHTS: Record<HomeSection, number> = {
   thisMonth: 180,

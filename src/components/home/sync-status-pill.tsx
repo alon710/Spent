@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import { formatLastSync, formatJerusalemTimeOfDay } from "@/lib/formatters";
+import { translateProviderName, useFormatterLabels } from "@/lib/i18n-data";
 import {
   Popover,
   PopoverContent,
@@ -23,55 +25,6 @@ interface PillState {
   tone: PillTone;
   label: string;
   detail: string | null;
-}
-
-function describe(items: HomeBankHealthItem[] | null): PillState {
-  if (!items || items.length === 0) {
-    return { tone: "muted", label: "No banks connected", detail: null };
-  }
-
-  const errors = items.filter((i) => i.status === "error");
-  if (errors.length > 0) {
-    return {
-      tone: "error",
-      label:
-        errors.length === 1
-          ? "1 bank failed"
-          : `${errors.length} banks failed`,
-      detail: errors.map((e) => e.providerName).join(", "),
-    };
-  }
-
-  const okItems = items.filter((i) => i.status === "ok");
-  const staleItems = items.filter((i) => i.status === "stale");
-  const everSynced = items.filter((i) => i.lastSyncAt != null);
-
-  if (everSynced.length === 0) {
-    return { tone: "muted", label: "Never synced", detail: null };
-  }
-
-  const oldestSync = everSynced.reduce<string | null>((oldest, i) => {
-    if (!i.lastSyncAt) return oldest;
-    if (!oldest) return i.lastSyncAt;
-    return new Date(i.lastSyncAt + "Z").getTime() <
-      new Date(oldest + "Z").getTime()
-      ? i.lastSyncAt
-      : oldest;
-  }, null);
-
-  if (staleItems.length > 0 && okItems.length === 0) {
-    return {
-      tone: "warn",
-      label: `Last sync ${formatLastSync(oldestSync)}`,
-      detail: staleItems.map((s) => s.providerName).join(", "),
-    };
-  }
-
-  return {
-    tone: "ok",
-    label: `Synced ${formatLastSync(oldestSync)}`,
-    detail: null,
-  };
 }
 
 const TONE_STYLES: Record<PillTone, { dot: string; text: string; ring: string; pulse: boolean }> = {
@@ -107,11 +60,11 @@ const TONE_STYLES: Record<PillTone, { dot: string; text: string; ring: string; p
   },
 };
 
-function formatElapsed(sinceIso: string | null): string {
+function formatElapsed(sinceIso: string | null, justNow: string): string {
   if (!sinceIso) return "";
   const start = new Date(sinceIso).getTime();
   const ageMs = Date.now() - start;
-  if (!Number.isFinite(ageMs) || ageMs < 0) return "just now";
+  if (!Number.isFinite(ageMs) || ageMs < 0) return justNow;
   const sec = Math.floor(ageMs / 1000);
   if (sec < 60) return `${sec}s`;
   const min = Math.floor(sec / 60);
@@ -137,19 +90,76 @@ export function SyncStatusPill({
   activity,
   onOpenChange,
 }: Props) {
+  const tPill = useTranslations("syncPill");
+  const tBanks = useTranslations("banks");
+  const fmtLabels = useFormatterLabels();
   const syncActive = activity?.sync.active === true;
   const syncStale = activity?.sync.stale === true;
   useTick(syncActive);
 
-  const baseState = useMemo<PillState>(() => describe(items), [items]);
+  const baseState = useMemo<PillState>(() => {
+    if (!items || items.length === 0) {
+      return { tone: "muted", label: tPill("noBanksConnected"), detail: null };
+    }
+
+    const errors = items.filter((i) => i.status === "error");
+    if (errors.length > 0) {
+      return {
+        tone: "error",
+        label:
+          errors.length === 1
+            ? tPill("oneBankFailed")
+            : tPill("banksFailed", { count: errors.length }),
+        detail: errors
+          .map((e) => translateProviderName(e.provider, e.providerName, tBanks))
+          .join(", "),
+      };
+    }
+
+    const okItems = items.filter((i) => i.status === "ok");
+    const staleItems = items.filter((i) => i.status === "stale");
+    const everSynced = items.filter((i) => i.lastSyncAt != null);
+
+    if (everSynced.length === 0) {
+      return { tone: "muted", label: tPill("neverSynced"), detail: null };
+    }
+
+    const oldestSync = everSynced.reduce<string | null>((oldest, i) => {
+      if (!i.lastSyncAt) return oldest;
+      if (!oldest) return i.lastSyncAt;
+      return new Date(i.lastSyncAt + "Z").getTime() <
+        new Date(oldest + "Z").getTime()
+        ? i.lastSyncAt
+        : oldest;
+    }, null);
+
+    if (staleItems.length > 0 && okItems.length === 0) {
+      return {
+        tone: "warn",
+        label: tPill("lastSyncRelative", { time: formatLastSync(oldestSync, fmtLabels) }),
+        detail: staleItems
+          .map((s) => translateProviderName(s.provider, s.providerName, tBanks))
+          .join(", "),
+      };
+    }
+
+    return {
+      tone: "ok",
+      label: tPill("syncedRelative", { time: formatLastSync(oldestSync, fmtLabels) }),
+      detail: null,
+    };
+  }, [items, tPill, tBanks, fmtLabels]);
+
   let state: PillState = baseState;
   if (syncActive && syncStale) {
-    state = { tone: "warn", label: "Sync may be stuck", detail: null };
+    state = { tone: "warn", label: tPill("syncMayBeStuck"), detail: null };
   } else if (syncActive) {
-    const elapsed = formatElapsed(activity?.sync.since ?? null);
+    const elapsed = formatElapsed(activity?.sync.since ?? null, fmtLabels.justNow);
     state = {
       tone: "active",
-      label: elapsed ? `Syncing now · ${elapsed}` : "Syncing now",
+      label: elapsed
+        ? tPill("syncingNowElapsed", { elapsed })
+        : tPill("syncingNow"),
       detail: null,
     };
   }
@@ -157,7 +167,7 @@ export function SyncStatusPill({
   const styles = TONE_STYLES[state.tone];
 
   const nextText = nextScheduledSync
-    ? `next ${formatJerusalemTimeOfDay(nextScheduledSync)}`
+    ? tPill("nextScheduled", { time: formatJerusalemTimeOfDay(nextScheduledSync) })
     : null;
 
   return (
@@ -197,48 +207,49 @@ export function SyncStatusPill({
 }
 
 function ActivityPanel({ activity }: { activity: ActivitySnapshot | null }) {
+  const t = useTranslations("activityPanel");
+  const fmtLabels = useFormatterLabels();
   const sync = activity?.sync;
   const scheduler = activity?.scheduler;
   const ollama = activity?.ollama;
 
   let syncRow: { tone: PillTone; text: string };
   if (!sync) {
-    syncRow = { tone: "muted", text: "Loading…" };
+    syncRow = { tone: "muted", text: fmtLabels.never };
   } else if (!sync.active) {
-    syncRow = { tone: "muted", text: "Idle" };
+    syncRow = { tone: "muted", text: t("syncIdle") };
   } else if (sync.stale) {
-    syncRow = { tone: "warn", text: "May be stuck" };
+    syncRow = { tone: "warn", text: t("syncMayBeStuck") };
   } else {
-    const elapsed = formatElapsed(sync.since);
-    const kindLabel = sync.kind === "scheduled" ? "scheduled" : "manual";
+    const elapsed = formatElapsed(sync.since, fmtLabels.justNow);
+    const kindLabel = sync.kind === "scheduled" ? t("syncKindScheduled") : t("syncKindManual");
     syncRow = {
       tone: "active",
-      text: elapsed ? `Syncing (${kindLabel}, ${elapsed})` : `Syncing (${kindLabel})`,
+      text: elapsed
+        ? t("syncingKindElapsed", { kind: kindLabel, elapsed })
+        : t("syncingKind", { kind: kindLabel }),
     };
   }
 
   const schedulerRow: { tone: PillTone; text: string } = scheduler?.armed
     ? {
         tone: "ok",
-        text: `Next ${formatJerusalemTimeOfDay(scheduler.nextRunAt!)}`,
+        text: t("schedulerNext", { time: formatJerusalemTimeOfDay(scheduler.nextRunAt!) }),
       }
-    : { tone: "muted", text: "Off" };
+    : { tone: "muted", text: t("schedulerOff") };
 
   const ollamaRow: { tone: PillTone; text: string } = ollama?.running
-    ? { tone: "ok", text: "Running (started by Spent)" }
-    : { tone: "muted", text: "Not running" };
+    ? { tone: "ok", text: t("ollamaRunning") }
+    : { tone: "muted", text: t("ollamaNotRunning") };
 
   return (
     <div className="space-y-2.5">
-      <div className="text-xs font-medium text-foreground">
-        What Spent is running
-      </div>
-      <Row label="Sync" value={syncRow.text} tone={syncRow.tone} />
-      <Row label="Scheduler" value={schedulerRow.text} tone={schedulerRow.tone} />
-      <Row label="Ollama" value={ollamaRow.text} tone={ollamaRow.tone} />
+      <div className="text-xs font-medium text-foreground">{t("title")}</div>
+      <Row label={t("syncLabel")} value={syncRow.text} tone={syncRow.tone} />
+      <Row label={t("schedulerLabel")} value={schedulerRow.text} tone={schedulerRow.tone} />
+      <Row label={t("ollamaLabel")} value={ollamaRow.text} tone={ollamaRow.tone} />
       <p className="pt-1 text-[11px] leading-snug text-muted-foreground">
-        These are the only background things Spent does. Ollama processes you
-        started yourself aren&apos;t shown.
+        {t("footerNote")}
       </p>
     </div>
   );
@@ -266,7 +277,7 @@ function Row({
         />
         {label}
       </div>
-      <div className={cn("text-right", styles.text)}>{value}</div>
+      <div className={cn("text-end", styles.text)}>{value}</div>
     </div>
   );
 }

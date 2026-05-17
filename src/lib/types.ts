@@ -283,6 +283,7 @@ export interface AppSettings {
   monthlyTarget: number | null;
   autoSyncEnabled: boolean;
   autoSyncTime: string;
+  language: "en" | "he";
 }
 
 export type BankProvider =

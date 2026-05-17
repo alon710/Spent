@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { ArrowDown, ArrowUp } from "lucide-react";
 import { CardShell, CardAction } from "./card-shell";
 import { formatCurrency } from "@/lib/formatters";
@@ -11,6 +12,7 @@ interface Props {
 }
 
 export function ThisMonthCard({ data }: Props) {
+  const t = useTranslations("home");
   const {
     spent,
     budget,
@@ -27,28 +29,28 @@ export function ThisMonthCard({ data }: Props) {
   const isHeadsUp = !isOver && delta >= 20;
   const isAhead = !isOver && delta <= -10;
 
-  let verdict = "Spent this month";
+  let verdict = t("spentThisMonth");
   let verdictClass = "text-muted-foreground";
   if (hasBudget) {
     if (isOver) {
-      verdict = `${formatCurrency(spent - budget)} over budget`;
+      verdict = t("verdictOver", { amount: formatCurrency(spent - budget) });
       verdictClass = "text-[var(--status-over)]";
     } else if (isHeadsUp) {
-      verdict = "A bit over schedule";
+      verdict = t("verdictABitOver");
       verdictClass = "text-[var(--status-over)]";
     } else if (isAhead) {
-      verdict = "Ahead of schedule";
+      verdict = t("verdictAhead");
       verdictClass = "text-[var(--status-on-track)]";
     } else {
-      verdict = "On schedule";
+      verdict = t("verdictOnSchedule");
       verdictClass = "text-[var(--status-on-track)]";
     }
   }
 
   return (
     <CardShell
-      label={`This ${monthLabel}`}
-      action={<CardAction href="/budget">Budget detail →</CardAction>}
+      label={t("thisMonthLabel", { month: monthLabel })}
+      action={<CardAction href="/budget">{t("budgetDetail")}</CardAction>}
     >
       <Link
         href="/budget"
@@ -75,18 +77,19 @@ export function ThisMonthCard({ data }: Props) {
             />
             <div className="flex justify-between text-xs text-muted-foreground tabular-nums">
               <span>
-                {Math.round(pctSpent)}% of {formatCurrency(budget)}
+                {t("percentOfBudget", {
+                  percent: Math.round(pctSpent),
+                  budget: formatCurrency(budget),
+                })}
               </span>
-              <span>
-                {daysUntilPayday} {daysUntilPayday === 1 ? "day" : "days"} to payday
-              </span>
+              <span>{t("daysToPayday", { days: daysUntilPayday })}</span>
             </div>
           </div>
         )}
 
         {!hasBudget && (
           <div className="text-xs text-muted-foreground">
-            {daysUntilPayday} {daysUntilPayday === 1 ? "day" : "days"} to payday
+            {t("daysToPayday", { days: daysUntilPayday })}
           </div>
         )}
       </Link>
@@ -95,6 +98,7 @@ export function ThisMonthCard({ data }: Props) {
 }
 
 function DeltaPill({ value }: { value: number }) {
+  const t = useTranslations("home");
   const rounded = Math.round(value);
   const isUp = rounded > 0;
   const isFlat = rounded === 0;
@@ -107,10 +111,10 @@ function DeltaPill({ value }: { value: number }) {
   return (
     <span
       className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium tabular-nums ${cls}`}
-      title="Compared to the same window last month"
+      title={t("comparedToLastMonth")}
     >
       {!isFlat && <Icon className="h-3 w-3" />}
-      {Math.abs(rounded)}% vs. last month
+      {t("vsLastMonth", { percent: Math.abs(rounded) })}
     </span>
   );
 }
@@ -135,7 +139,7 @@ function ProgressBar({
       />
       <div
         className="absolute top-0 bottom-0 w-px bg-foreground/40"
-        style={{ left: `${Math.min(100, Math.max(0, markPercent))}%` }}
+        style={{ insetInlineStart: `${Math.min(100, Math.max(0, markPercent))}%` }}
         aria-hidden
       />
     </div>

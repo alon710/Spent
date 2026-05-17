@@ -1,8 +1,10 @@
 "use client";
 
+import { useLocale, useTranslations } from "next-intl";
 import { ArrowDownRight, ArrowUpRight, Minus } from "lucide-react";
 import { formatCurrency } from "@/lib/formatters";
 import type { TransactionsSummary } from "@/lib/api";
+import type { Locale } from "@/i18n/routing";
 
 interface KpiCardsProps {
   summary?: TransactionsSummary;
@@ -13,6 +15,8 @@ const INCOME_TINT = "color-mix(in oklch, var(--status-on-track) 12%, transparent
 const EXPENSE_TINT = "color-mix(in oklch, var(--status-over) 12%, transparent)";
 
 export function KpiCards({ summary, loading }: KpiCardsProps) {
+  const t = useTranslations("transactions");
+  const locale = useLocale() as Locale;
   const income = summary?.income.total ?? 0;
   const expense = summary?.expense.total ?? 0;
   const net = summary?.net ?? 0;
@@ -20,30 +24,37 @@ export function KpiCards({ summary, loading }: KpiCardsProps) {
   const expenseCount = summary?.expense.count ?? 0;
   const netPositive = net >= 0;
 
+  const countMeta = (count: number): string => {
+    const label = count === 1 ? t("kpiTransactionOne") : t("kpiTransactionOther");
+    return `${count} ${label}`;
+  };
+
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
       <KpiCard
-        label="Income"
+        label={t("kpiIncome")}
         amount={income}
-        meta={`${incomeCount} ${incomeCount === 1 ? "transaction" : "transactions"}`}
+        meta={countMeta(incomeCount)}
         icon={<ArrowUpRight className="h-4 w-4" />}
         color="var(--status-on-track)"
         iconBg={INCOME_TINT}
         loading={loading}
+        locale={locale}
       />
       <KpiCard
-        label="Expenses"
+        label={t("kpiExpenses")}
         amount={expense}
-        meta={`${expenseCount} ${expenseCount === 1 ? "transaction" : "transactions"}`}
+        meta={countMeta(expenseCount)}
         icon={<ArrowDownRight className="h-4 w-4" />}
         color="var(--status-over)"
         iconBg={EXPENSE_TINT}
         loading={loading}
+        locale={locale}
       />
       <KpiCard
-        label={netPositive ? "Net saved" : "Net overspend"}
+        label={netPositive ? t("kpiNetSaved") : t("kpiNetOverspend")}
         amount={Math.abs(net)}
-        meta={netPositive ? "Income exceeded expenses" : "Expenses exceeded income"}
+        meta={netPositive ? t("kpiIncomeExceeded") : t("kpiExpensesExceeded")}
         icon={
           net === 0 ? (
             <Minus className="h-4 w-4" />
@@ -68,6 +79,7 @@ export function KpiCards({ summary, loading }: KpiCardsProps) {
               : EXPENSE_TINT
         }
         loading={loading}
+        locale={locale}
       />
     </div>
   );
@@ -81,6 +93,7 @@ interface KpiCardProps {
   color: string;
   iconBg: string;
   loading: boolean;
+  locale: Locale;
 }
 
 function KpiCard({
@@ -91,6 +104,7 @@ function KpiCard({
   color,
   iconBg,
   loading,
+  locale,
 }: KpiCardProps) {
   return (
     <div className="rounded-2xl border border-border bg-card p-5">
@@ -112,7 +126,7 @@ function KpiCard({
         {loading ? (
           <span className="text-muted-foreground">—</span>
         ) : (
-          formatCurrency(amount)
+          formatCurrency(amount, "ILS", locale)
         )}
       </div>
       <div className="mt-0.5 text-xs text-muted-foreground">{meta}</div>

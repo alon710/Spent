@@ -253,7 +253,7 @@ function ProviderRow({
     <button
       type="button"
       onClick={onClick}
-      className="flex items-center gap-3 rounded-xl border bg-card px-3 py-2.5 text-left transition-colors hover:bg-accent/40"
+      className="flex items-center gap-3 rounded-xl border bg-card px-3 py-2.5 text-start transition-colors hover:bg-accent/40"
       style={{
         borderColor: selected ? tint.mid : "var(--border)",
         background: selected
@@ -294,7 +294,7 @@ function ProviderRow({
           <Check className="h-3 w-3" strokeWidth={3} />
         </span>
       ) : (
-        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/60" />
+        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/60 rtl:rotate-180" />
       )}
     </button>
   );
@@ -333,12 +333,12 @@ function ClaudeConfig({
           value={apiKey}
           onChange={(e) => setApiKey(e.target.value)}
           placeholder="sk-ant-api03-..."
-          className="font-mono pr-14"
+          className="font-mono pe-14"
         />
         <button
           type="button"
           onClick={() => setShowKey(!showKey)}
-          className="absolute right-2 top-1/2 -translate-y-1/2 rounded px-2 py-1 text-[11px] text-muted-foreground hover:bg-accent"
+          className="absolute end-2 top-1/2 -translate-y-1/2 rounded px-2 py-1 text-[11px] text-muted-foreground hover:bg-accent"
         >
           {showKey ? "hide" : "show"}
         </button>
@@ -398,7 +398,7 @@ function OllamaConfig({
               href="https://ollama.com"
               target="_blank"
               rel="noreferrer"
-              className="ml-auto font-bold underline"
+              className="ms-auto font-bold underline"
             >
               Install ↗
             </a>
@@ -430,7 +430,7 @@ function OllamaConfig({
               key={m.name}
               type="button"
               onClick={() => setModel(m.name)}
-              className={`relative rounded-lg border bg-background p-2 text-left transition-colors ${
+              className={`relative rounded-lg border bg-background p-2 text-start transition-colors ${
                 model === m.name
                   ? "border-primary bg-primary/5"
                   : "border-border hover:border-primary/40"

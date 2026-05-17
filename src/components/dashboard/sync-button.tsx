@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { startSync, submitSyncOtp } from "@/lib/api";
 import { toast } from "sonner";
@@ -16,6 +17,7 @@ interface SyncButtonProps {
 }
 
 export function SyncButton({ onComplete, autoStart = false }: SyncButtonProps) {
+  const t = useTranslations("dashboard");
   const [syncing, setSyncing] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [providers, setProviders] = useState<string[]>([]);
@@ -139,7 +141,7 @@ export function SyncButton({ onComplete, autoStart = false }: SyncButtonProps) {
         setSyncing(false);
         setAiWarning(warning ?? null);
         if (warning) {
-          toast.warning("AI categorization issue", {
+          toast.warning(t("aiCategorizationIssue"), {
             description: warning,
             duration: 6000,
             closeButton: true,
@@ -153,7 +155,7 @@ export function SyncButton({ onComplete, autoStart = false }: SyncButtonProps) {
         toast.error(message, {
           duration: Infinity,
           closeButton: true,
-          description: "Check the dev server terminal for full details.",
+          description: t("checkDevTerminal"),
         });
       }
     });
@@ -179,7 +181,7 @@ export function SyncButton({ onComplete, autoStart = false }: SyncButtonProps) {
         className="gap-1.5"
       >
         <RefreshCw className={`h-3.5 w-3.5 ${syncing ? "animate-spin" : ""}`} />
-        {syncing ? "Syncing…" : "Sync & Categorize"}
+        {syncing ? t("syncing") : t("syncAndCategorize")}
       </Button>
 
       <SyncProgressDialog

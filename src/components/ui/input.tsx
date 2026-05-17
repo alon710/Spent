@@ -46,13 +46,13 @@ function InputGroup({
       {...props}
     >
       {prefix && (
-        <span className="flex items-center pl-3 pr-1 text-sm text-muted-foreground">
+        <span className="flex items-center ps-3 pe-1 text-sm text-muted-foreground">
           {prefix}
         </span>
       )}
       {children}
       {suffix && (
-        <span className="flex items-center pl-1 pr-3 text-sm text-muted-foreground">
+        <span className="flex items-center ps-1 pe-3 text-sm text-muted-foreground">
           {suffix}
         </span>
       )}

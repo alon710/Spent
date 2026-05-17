@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -65,10 +66,11 @@ export function CardSkeleton({
 }
 
 export function CardError({ label, className }: { label?: string; className?: string }) {
+  const t = useTranslations("home");
   return (
     <CardShell label={label} className={className}>
       <div className="flex flex-1 items-center justify-center py-8 text-sm text-muted-foreground">
-        Couldn&apos;t load this section.
+        {t("couldntLoad")}
       </div>
     </CardShell>
   );

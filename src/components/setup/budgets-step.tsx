@@ -234,7 +234,7 @@ function CategoryCell({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder="—"
-          className="w-12 border-0 bg-transparent p-0 text-right text-[11px] tabular-nums outline-none placeholder:text-muted-foreground/40 focus:underline focus:decoration-foreground/30 focus:underline-offset-4"
+          className="w-12 border-0 bg-transparent p-0 text-end text-[11px] tabular-nums outline-none placeholder:text-muted-foreground/40 focus:underline focus:decoration-foreground/30 focus:underline-offset-4"
           style={{
             fontWeight: filled ? 600 : 400,
           }}

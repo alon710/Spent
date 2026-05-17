@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { previewCategorize } from "@/lib/api";
 import { toast } from "sonner";
@@ -13,6 +14,7 @@ interface CategorizeButtonProps {
 }
 
 export function CategorizeButton({ onApplied }: CategorizeButtonProps) {
+  const t = useTranslations("dashboard");
   const queryClient = useQueryClient();
   const [preview, setPreview] = useState<CategorizePreview | null>(null);
 
@@ -20,13 +22,13 @@ export function CategorizeButton({ onApplied }: CategorizeButtonProps) {
     mutationFn: previewCategorize,
     onSuccess: (data) => {
       if (data.uncategorizedCount === 0) {
-        toast.info("Nothing to categorize - every transaction already has a category.");
+        toast.info(t("nothingToCategorize"));
         return;
       }
       setPreview(data);
     },
     onError: (err) => {
-      toast.error(err instanceof Error ? err.message : "Categorization failed", {
+      toast.error(err instanceof Error ? err.message : t("categorizationFailed"), {
         duration: Infinity,
         closeButton: true,
       });
@@ -77,7 +79,7 @@ export function CategorizeButton({ onApplied }: CategorizeButtonProps) {
             />
           </svg>
         )}
-        {mutation.isPending ? "Thinking..." : "Categorize"}
+        {mutation.isPending ? t("thinking") : t("categorize")}
       </Button>
 
       {preview && (

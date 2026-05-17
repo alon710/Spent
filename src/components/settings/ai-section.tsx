@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 import {
   Select,
   SelectContent,
@@ -18,31 +19,51 @@ import { OllamaModelStatus } from "./ollama-model-status";
 import { SectionShell, SettingCard } from "./section-shell";
 import { toast } from "sonner";
 
+function ollamaModelKey(name: string): string {
+  return name.replace(/[^a-zA-Z0-9]/g, "_");
+}
+
+function ollamaModelDescription(
+  name: string,
+  fallback: string,
+  tModels: ReturnType<typeof useTranslations<"ollamaModels">>,
+): string {
+  const key = ollamaModelKey(name);
+  try {
+    const translated = tModels(key);
+    return translated && translated !== key ? translated : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 export function AISection() {
+  const t = useTranslations("settings.ai");
+  const tCommon = useTranslations("common");
   const { data: settings } = useQuery({
     queryKey: ["settings"],
     queryFn: getSettings,
   });
   if (!settings) {
     return (
-      <SectionShell title="AI & automation">
+      <SectionShell title={t("title")}>
         <SettingCard>
-          <div className="text-sm text-muted-foreground">Loading...</div>
+          <div className="text-sm text-muted-foreground">{tCommon("loading")}</div>
         </SettingCard>
       </SectionShell>
     );
   }
   return (
-    <SectionShell
-      title="AI & automation"
-      description="How Spent organizes new transactions. Switch any time — your existing categorizations stay."
-    >
+    <SectionShell title={t("title")} description={t("description")}>
       <AIForm key={settings.aiProvider} settings={settings} />
     </SectionShell>
   );
 }
 
 function AIForm({ settings }: { settings: AppSettings }) {
+  const t = useTranslations("settings.ai");
+  const tCommon = useTranslations("common");
+  const tModels = useTranslations("ollamaModels");
   const queryClient = useQueryClient();
   const [provider, setProvider] = useState<AppSettings["aiProvider"]>(
     settings.aiProvider
@@ -61,7 +82,7 @@ function AIForm({ settings }: { settings: AppSettings }) {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["settings"] });
-      toast.success("AI settings saved");
+      toast.success(t("aiSettingsSaved"));
       setApiKey("");
     },
   });
@@ -69,33 +90,33 @@ function AIForm({ settings }: { settings: AppSettings }) {
   return (
     <>
       <SettingCard
-        title="Provider"
-        description="Switch any time. Your existing categorizations are kept."
+        title={t("providerCardTitle")}
+        description={t("providerCardDescription")}
       >
         <div className="grid gap-2 sm:grid-cols-3">
           {(
             [
               {
-                id: "claude",
-                title: "Claude (Anthropic)",
-                desc: "Fast and accurate. Paid API. Bring your own API key.",
+                id: "claude" as const,
+                title: t("providerClaudeTitle"),
+                desc: t("providerClaudeDesc"),
               },
               {
-                id: "ollama",
-                title: "Ollama (Local)",
-                desc: "Free, private, runs on your machine. Needs a model download.",
+                id: "ollama" as const,
+                title: t("providerOllamaTitle"),
+                desc: t("providerOllamaDesc"),
               },
               {
-                id: "none",
-                title: "None",
-                desc: "Skip categorization. Assign categories manually.",
+                id: "none" as const,
+                title: t("providerNoneTitle"),
+                desc: t("providerNoneDesc"),
               },
-            ] as const
+            ]
           ).map((opt) => (
             <button
               key={opt.id}
               onClick={() => setProvider(opt.id)}
-              className={`rounded-xl border p-4 text-left transition-colors ${
+              className={`rounded-xl border p-4 text-start transition-colors ${
                 provider === opt.id
                   ? "border-primary bg-primary/5"
                   : "border-border hover:border-primary/50"
@@ -112,11 +133,11 @@ function AIForm({ settings }: { settings: AppSettings }) {
 
       {provider === "claude" && (
         <SettingCard
-          title="Claude API key"
-          description="Paste your key from console.anthropic.com. It's encrypted at rest with AES-256-GCM."
+          title={t("claudeKeyCardTitle")}
+          description={t("claudeKeyCardDescription")}
         >
           <div className="space-y-2">
-            <Label htmlFor="claude-key">API key</Label>
+            <Label htmlFor="claude-key">{t("apiKeyLabel")}</Label>
             <Input
               id="claude-key"
               type="password"
@@ -125,7 +146,7 @@ function AIForm({ settings }: { settings: AppSettings }) {
               placeholder="sk-ant-..."
             />
             <p className="text-xs text-muted-foreground">
-              Leave blank to keep your existing key.
+              {t("leaveBlankHint")}
             </p>
           </div>
         </SettingCard>
@@ -133,12 +154,12 @@ function AIForm({ settings }: { settings: AppSettings }) {
 
       {provider === "ollama" && (
         <SettingCard
-          title="Ollama configuration"
-          description="Spent auto-starts Ollama if it's installed but not running."
+          title={t("ollamaCardTitle")}
+          description={t("ollamaCardDescription")}
         >
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="ollama-url">Ollama URL</Label>
+              <Label htmlFor="ollama-url">{t("ollamaUrlLabel")}</Label>
               <Input
                 id="ollama-url"
                 value={ollamaUrl}
@@ -147,7 +168,7 @@ function AIForm({ settings }: { settings: AppSettings }) {
               />
             </div>
             <div className="space-y-2">
-              <Label>Model</Label>
+              <Label>{t("modelLabel")}</Label>
               <Select
                 value={ollamaModel}
                 onValueChange={(v) => v && setOllamaModel(v)}
@@ -165,7 +186,7 @@ function AIForm({ settings }: { settings: AppSettings }) {
                         </span>
                         {m.recommended && (
                           <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] text-primary">
-                            recommended
+                            {t("recommendedTag")}
                           </span>
                         )}
                       </div>
@@ -174,10 +195,10 @@ function AIForm({ settings }: { settings: AppSettings }) {
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">
-                {
-                  RECOMMENDED_OLLAMA_MODELS.find((m) => m.name === ollamaModel)
-                    ?.description
-                }
+                {(() => {
+                  const m = RECOMMENDED_OLLAMA_MODELS.find((m) => m.name === ollamaModel);
+                  return m ? ollamaModelDescription(m.name, m.description, tModels) : "";
+                })()}
               </p>
             </div>
             <OllamaModelStatus ollamaUrl={ollamaUrl} model={ollamaModel} />
@@ -190,7 +211,7 @@ function AIForm({ settings }: { settings: AppSettings }) {
           onClick={() => mutation.mutate()}
           disabled={mutation.isPending}
         >
-          {mutation.isPending ? "Saving..." : "Save AI settings"}
+          {mutation.isPending ? tCommon("saving") : t("saveAiSettings")}
         </Button>
       </div>
     </>

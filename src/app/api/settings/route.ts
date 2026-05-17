@@ -4,6 +4,7 @@ import {
   updateAppSettings,
 } from "@/server/db/queries/settings";
 import { getWorkspaceIdFromRequest } from "@/server/lib/workspace-context";
+import { LOCALE_COOKIE } from "@/i18n/routing";
 
 export async function GET(request: Request) {
   const workspaceId = getWorkspaceIdFromRequest(request);
@@ -19,7 +20,15 @@ export async function PUT(request: Request) {
       const { reschedule } = await import("@/server/sync/scheduler");
       reschedule();
     }
-    return NextResponse.json(updated);
+    const res = NextResponse.json(updated);
+    if (body.language === "en" || body.language === "he") {
+      res.cookies.set(LOCALE_COOKIE, body.language, {
+        path: "/",
+        maxAge: 60 * 60 * 24 * 365,
+        sameSite: "lax",
+      });
+    }
+    return res;
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to update settings";
     return NextResponse.json({ error: message }, { status: 400 });

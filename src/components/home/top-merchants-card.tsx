@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { CardShell } from "./card-shell";
 import { formatCurrency } from "@/lib/formatters";
 import type { HomeTopMerchant } from "@/lib/types";
@@ -9,11 +10,12 @@ interface Props {
 }
 
 export function TopMerchantsCard({ items }: Props) {
+  const t = useTranslations("home");
   if (items.length === 0) {
     return (
-      <CardShell label="Top merchants">
+      <CardShell label={t("topMerchants")}>
         <div className="flex flex-1 items-center justify-center py-6 text-sm text-muted-foreground">
-          No spending this month yet.
+          {t("noSpendingMonth")}
         </div>
       </CardShell>
     );
@@ -22,7 +24,7 @@ export function TopMerchantsCard({ items }: Props) {
   const max = items[0]?.total ?? 0;
 
   return (
-    <CardShell label="Top merchants this month">
+    <CardShell label={t("topMerchantsMonth")}>
       <ul className="flex flex-1 flex-col gap-3">
         {items.map((m, i) => {
           const widthPct = max > 0 ? (m.total / max) * 100 : 0;
@@ -42,7 +44,7 @@ export function TopMerchantsCard({ items }: Props) {
                   />
                 </div>
                 <span className="shrink-0 text-[10px] text-muted-foreground tabular-nums">
-                  {m.count} {m.count === 1 ? "txn" : "txns"}
+                  {m.count} {m.count === 1 ? t("txnsOne") : t("txnsOther")}
                 </span>
               </div>
             </li>

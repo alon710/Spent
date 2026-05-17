@@ -216,7 +216,7 @@ function BudgetSection({
               <Input
                 id={`budget-${category.id}`}
                 type="number"
-                className="text-right tabular-nums"
+                className="text-end tabular-nums"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 onBlur={handleBlur}
