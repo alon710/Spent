@@ -41,7 +41,7 @@ import NextStepCard from '../../components/docs/NextStepCard.astro';
 
 You pick one during the setup wizard, and you can switch any time from *Settings → AI*. Previously-categorized transactions stay categorized; only new transactions go through the new provider.
 
-## Claude {#claude}
+## Claude
 
 Cost-effective for personal use because of Claude Haiku 4.5's pricing and Spent's batching (50 transactions per call).
 
@@ -55,7 +55,7 @@ Cost-effective for personal use because of Claude Haiku 4.5's pricing and Spent'
 Spent sends Anthropic's API the **merchant name and amount** of each new transaction — no personal IDs, no bank credentials. Anthropic's commercial API does not train on submitted data.
 </Callout>
 
-## Ollama {#ollama}
+## Ollama
 
 Runs a language model on your own machine. Slower than Claude, but every byte stays local.
 
@@ -75,7 +75,7 @@ Spent talks to Ollama at `http://localhost:11434`, its default.
 Ollama needs about **6-12 GB of RAM** while running. Smaller models can struggle with Hebrew merchant names — `llama3.1:8b` and `qwen2.5:3b` are the most reliable.
 </Callout>
 
-## Manual {#manual}
+## Manual
 
 Skip AI entirely. Each transaction starts in *Uncategorized*. You assign categories by clicking the category badge in the dashboard.
 
