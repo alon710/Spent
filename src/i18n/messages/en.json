@@ -581,7 +581,23 @@
     "Transfers": "Transfers",
     "Insurance": "Insurance",
     "Home": "Home",
-    "Personal Care": "Personal Care"
+    "Personal Care": "Personal Care",
+    "Coffee & Cafes": "Coffee & Cafes",
+    "Pet Care": "Pet Care",
+    "Gifts & Donations": "Gifts & Donations",
+    "Kids & Childcare": "Kids & Childcare",
+    "Sports & Hobbies": "Sports & Hobbies",
+    "Salary": "Salary",
+    "Freelance & Side Income": "Freelance & Side Income",
+    "Investment Income": "Investment Income",
+    "Refunds & Reimbursements": "Refunds & Reimbursements",
+    "Food": "Food",
+    "Transportation": "Transportation",
+    "Lifestyle": "Lifestyle",
+    "Home & Bills": "Home & Bills",
+    "Health & Family": "Health & Family",
+    "Money Movement": "Money Movement",
+    "Fees & Taxes": "Fees & Taxes"
   },
   "banks": {
     "isracard": {

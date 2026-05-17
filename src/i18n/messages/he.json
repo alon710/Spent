@@ -581,7 +581,23 @@
     "Transfers": "העברות",
     "Insurance": "ביטוח",
     "Home": "בית",
-    "Personal Care": "טיפוח אישי"
+    "Personal Care": "טיפוח אישי",
+    "Coffee & Cafes": "קפה ובתי קפה",
+    "Pet Care": "טיפול בחיות מחמד",
+    "Gifts & Donations": "מתנות ותרומות",
+    "Kids & Childcare": "ילדים והשגחה",
+    "Sports & Hobbies": "ספורט ותחביבים",
+    "Salary": "משכורת",
+    "Freelance & Side Income": "פרילנס והכנסה צדדית",
+    "Investment Income": "הכנסה מהשקעות",
+    "Refunds & Reimbursements": "החזרים והשבות",
+    "Food": "אוכל",
+    "Transportation": "תחבורה ונסיעות",
+    "Lifestyle": "סגנון חיים",
+    "Home & Bills": "בית וחשבונות",
+    "Health & Family": "בריאות ומשפחה",
+    "Money Movement": "תנועות כספים",
+    "Fees & Taxes": "עמלות ומסים"
   },
   "banks": {
     "isracard": {
