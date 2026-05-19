@@ -559,6 +559,7 @@ interface TransactionRow {
   sync_run_id: number;
   kind: string;
   needs_review: number;
+  is_excluded: number;
   created_at: string;
   updated_at: string;
   category_name?: string | null;
@@ -593,6 +594,7 @@ function mapTransactionRow(row: unknown): TransactionWithCategory {
     syncRunId: r.sync_run_id,
     kind: r.kind as "expense" | "income" | "transfer",
     needsReview: r.needs_review === 1,
+    isExcluded: r.is_excluded === 1,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
     categoryName: r.category_name ?? null,
