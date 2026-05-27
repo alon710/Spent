@@ -178,7 +178,12 @@ function ProviderRowView({
 
         <div className="relative min-w-0 flex-1">
           <div className="truncate text-sm font-medium">{label}</div>
-          <div className="truncate text-[11px] text-muted-foreground">
+          <div
+            className={cn(
+              "text-[11px] text-muted-foreground",
+              row.status === "error" ? "break-words" : "truncate",
+            )}
+          >
             {row.status === "idle" && "Waiting…"}
             {row.status === "running" && "Pulling transactions…"}
             {row.status === "awaiting-otp" && "Enter the one-time code we just sent you"}
@@ -192,7 +197,7 @@ function ProviderRowView({
               (row.added === 0 && row.updated === 0
                 ? "Already up to date"
                 : `+${row.added} new${row.updated ? ` · ${row.updated} updated` : ""}`)}
-            {row.status === "error" && (row.errorMessage?.slice(0, 60) ?? "Failed")}
+            {row.status === "error" && (row.errorMessage ?? "Failed")}
           </div>
         </div>
 
