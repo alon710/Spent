@@ -48,7 +48,7 @@ The trade-off is honest: you self-host, you trust the scraper, and you accept th
 <td width="33%" valign="top">
 
 ### 🏦 Israeli bank integration
-Isracard, Bank Hapoalim, and Max work out of the box. Visa Cal and Bank Leumi are on the roadmap.
+18 banks and card issuers ship enabled out of the box, from Isracard, Hapoalim, Leumi, Mizrahi, and Cal to One Zero (with programmatic SMS 2FA).
 
 </td>
 <td width="33%" valign="top">
@@ -81,6 +81,9 @@ Polished buttercream-and-sage palette in light mode, warm charcoal in dark. Syst
 
 ### 🍎 Menu bar / tray app
 Native companion in your menu bar (macOS) or notification area (Windows). Status indicator, one-click open dashboard, sync, and start/stop/restart the service.
+
+### 💬 Chat with your spending
+A built-in AI chat agent at `/chat` answers questions about your transactions, budgets, and categories. Uses the same provider you picked for categorization.
 
 </td>
 </tr>
@@ -153,7 +156,7 @@ Toggle between English (default) and עברית from **Settings → Appearance**
 
 ```mermaid
 flowchart LR
-    Bank["🏦 Israeli bank<br/>(Isracard / Hapoalim / Max)"]
+    Bank["🏦 Israeli bank<br/>(Isracard, Hapoalim, Leumi,<br/>Mizrahi, Cal, One Zero, …)"]
     Scraper["Puppeteer scraper<br/>(israeli-bank-scrapers)"]
     DB[("📦 SQLite<br/>data/spent.db<br/>(WAL mode)")]
     AI{"🤖 AI provider<br/>Claude · Gemini · Ollama · None"}
@@ -176,13 +179,28 @@ Everything inside the dashed box stays on your laptop. The only outbound traffic
 
 ## Supported banks
 
-| Bank | Type | Status |
+| Bank | Type | Notes |
 |---|---|---|
-| **Isracard** | Credit card | ✅ Supported |
-| **Bank Hapoalim** (incl. Poalim wallets) | Bank | ✅ Supported |
-| **Max** (formerly Leumi Card) | Credit card | ✅ Supported |
-| Visa Cal | Credit card | 🚧 Planned |
-| Bank Leumi | Bank | 🚧 Planned |
+| **Isracard** | Credit card | ID + last 6 of card + password |
+| **Visa Cal** | Credit card | Username + password |
+| **Max** (formerly Leumi Card) | Credit card | Username + password |
+| **American Express IL** | Credit card | Isracard-issued; ID + last 6 + password |
+| **Bank Hapoalim** (incl. Poalim wallets) | Bank | User code + password |
+| **Bank Leumi** | Bank | Username + password |
+| **Mizrahi Tefahot** | Bank | Username + password |
+| **Bank Discount** | Bank | ID + password + account number |
+| **Mercantile Discount** | Bank | ID + password + account number |
+| **First International (FIBI / Beinleumi)** | Bank | Username + password |
+| **Otsar Hahayal** | Bank | FIBI subsidiary; username + password |
+| **Bank Pagi** | Bank | Username + password |
+| **Bank Massad** | Bank | Username + password |
+| **Bank Yahav** | Bank | Username + ID + password — 6 months history only |
+| **Union Bank** | Bank | Merged into Mizrahi-Tefahot; legacy access |
+| **Beyahad Bishvilha** | Card | Histadrut benefits; ID + password |
+| **Behatsdaa** | Card | Histadrut subsidies; ID + password |
+| **One Zero** | Bank | Programmatic SMS 2FA; email + password + phone |
+
+All of the above are wired through [`israeli-bank-scrapers`](https://github.com/eshaham/israeli-bank-scrapers) and shipped enabled. **One Zero** is the only provider with programmatic 2FA — for the others, disable 2FA on the bank side or use the `showBrowser` manual-2FA fallback.
 
 Don't see your bank? Adding a scraper is a small wrapper around `israeli-bank-scrapers` — see [Contributing](#contributing).
 
@@ -195,7 +213,7 @@ Don't see your bank? Adding a scraper is a small wrapper around `israeli-bank-sc
 | Network | `api.anthropic.com` | Google Gemini API | `localhost:11434` | Offline |
 | Setup | API key | API key from Google AI Studio + choose a model | Install Ollama + pull a model | Nothing |
 
-Default model when Claude is selected: `claude-haiku-4-5` (cheap, fast, accurate for categorization). Gemini defaults to `gemini-3.5-flash` and lets you choose from stable text models: `gemini-3.5-flash`, `gemini-3.1-flash-lite`, `gemini-2.5-flash`, `gemini-2.5-flash-lite`, and `gemini-2.5-pro`. For Ollama, `llama3.2:3b` is the recommended default.
+Default model when Claude is selected: `claude-haiku-4-5-20251001` (cheap, fast, accurate for categorization). Gemini defaults to `gemini-3.5-flash` and lets you choose from stable text models: `gemini-3.5-flash`, `gemini-3.1-flash-lite`, `gemini-2.5-flash`, `gemini-2.5-flash-lite`, and `gemini-2.5-pro`. For Ollama, `llama3.2:3b` is the recommended default.
 
 You can change providers any time from **Settings → AI provider**. Existing categorizations are kept.
 
@@ -352,8 +370,10 @@ spent/
 ## Roadmap
 
 - [x] Hebrew UI with full RTL layout
-- [ ] Visa Cal scraper
-- [ ] Bank Leumi scraper
+- [x] Visa Cal, Bank Leumi, Mizrahi, Discount, FIBI, and the rest of the `israeli-bank-scrapers` roster
+- [x] One Zero with programmatic SMS 2FA
+- [x] Gemini as a third AI provider
+- [x] AI chat agent for asking questions about your spending
 - [ ] CSV / OFX export
 - [ ] Custom user-defined categories
 - [ ] Mobile companion (Phase 2)
