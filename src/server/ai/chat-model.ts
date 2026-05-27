@@ -1,8 +1,8 @@
 import "server-only";
 
 import { createAnthropic } from "@ai-sdk/anthropic";
-import { createOllama } from "ai-sdk-ollama";
 import type { LanguageModel } from "ai";
+import { createOllama } from "ai-sdk-ollama";
 import { getSetting } from "../db/queries/settings";
 import { decrypt } from "../lib/encryption";
 

@@ -1,12 +1,12 @@
 import "server-only";
 
-import type { AIProvider } from "./types";
-import { ClaudeProvider } from "./providers/claude";
-import { GeminiProvider } from "./providers/gemini";
-import { OllamaProvider } from "./providers/ollama";
 import { RECOMMENDED_GEMINI_MODELS } from "@/lib/types";
 import { getSetting } from "../db/queries/settings";
 import { decrypt } from "../lib/encryption";
+import { ClaudeProvider } from "./providers/claude";
+import { GeminiProvider } from "./providers/gemini";
+import { OllamaProvider } from "./providers/ollama";
+import type { AIProvider } from "./types";
 
 export function createAIProvider(): AIProvider | null {
   const provider = getSetting("ai_provider");
@@ -40,8 +40,7 @@ export function createAIProvider(): AIProvider | null {
       authTag: Buffer.from(authTag, "hex"),
     });
 
-    const model =
-      getSetting("ai_gemini_model") ?? RECOMMENDED_GEMINI_MODELS[0].name;
+    const model = getSetting("ai_gemini_model") ?? RECOMMENDED_GEMINI_MODELS[0].name;
     return new GeminiProvider(apiKey, model);
   }
 

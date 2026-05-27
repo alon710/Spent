@@ -1,18 +1,10 @@
 import "server-only";
 
-import {
-  convertToModelMessages,
-  streamText,
-  stepCountIs,
-  type UIMessage,
-} from "ai";
+import { convertToModelMessages, stepCountIs, streamText, type UIMessage } from "ai";
 import { NextResponse } from "next/server";
 import { createChatModel } from "@/server/ai/chat-model";
 import { buildChatTools } from "@/server/ai/chat-tools";
-import {
-  ensureChatSession,
-  replaceChatMessages,
-} from "@/server/db/queries/chat-sessions";
+import { ensureChatSession, replaceChatMessages } from "@/server/db/queries/chat-sessions";
 import { getWorkspaceIdFromRequest } from "@/server/lib/workspace-context";
 
 export const maxDuration = 60;
@@ -41,10 +33,7 @@ Guidelines:
 export async function POST(req: Request) {
   const model = createChatModel();
   if (!model) {
-    return NextResponse.json(
-      { error: "AI provider not configured" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "AI provider not configured" }, { status: 400 });
   }
 
   const workspaceId = getWorkspaceIdFromRequest(req);

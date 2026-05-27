@@ -66,21 +66,18 @@ export function listChatSessions(workspaceId: number): ChatSessionSummary[] {
        LEFT JOIN chat_messages m ON m.session_id = s.id
        WHERE s.workspace_id = ?
        GROUP BY s.id
-       ORDER BY s.updated_at DESC, s.created_at DESC`
+       ORDER BY s.updated_at DESC, s.created_at DESC`,
     )
     .all(workspaceId) as ChatSessionRow[];
   return rows.map(mapSessionSummary);
 }
 
-export function getChatSession(
-  workspaceId: number,
-  id: string
-): ChatSession | null {
+export function getChatSession(workspaceId: number, id: string): ChatSession | null {
   const row = getDb()
     .prepare(
       `SELECT id, workspace_id, title, title_source, created_at, updated_at
        FROM chat_sessions
-       WHERE workspace_id = ? AND id = ?`
+       WHERE workspace_id = ? AND id = ?`,
     )
     .get(workspaceId, id) as ChatSessionRow | undefined;
   return row ? mapSession(row) : null;
@@ -94,7 +91,7 @@ export function ensureChatSession(workspaceId: number, id: string): ChatSession 
     .prepare(
       `INSERT INTO chat_sessions (id, workspace_id, title, title_source)
        VALUES (?, ?, ?, 'auto')
-       ON CONFLICT(id) DO NOTHING`
+       ON CONFLICT(id) DO NOTHING`,
     )
     .run(normalizedId, workspaceId, DEFAULT_TITLE);
 
@@ -107,7 +104,7 @@ export function updateChatSessionTitle(
   workspaceId: number,
   id: string,
   title: string,
-  source: "auto" | "manual"
+  source: "auto" | "manual",
 ): ChatSession | null {
   const normalized = normalizeTitle(title);
   if (!normalized) return getChatSession(workspaceId, id);
@@ -117,7 +114,7 @@ export function updateChatSessionTitle(
       `UPDATE chat_sessions
        SET title = ?, title_source = ?, updated_at = datetime('now')
        WHERE workspace_id = ? AND id = ?
-         AND (? = 'manual' OR title_source != 'manual')`
+         AND (? = 'manual' OR title_source != 'manual')`,
     )
     .run(normalized, source, workspaceId, id, source);
 
@@ -132,10 +129,7 @@ export function deleteChatSession(workspaceId: number, id: string): boolean {
   return result.changes > 0;
 }
 
-export function getChatMessages(
-  workspaceId: number,
-  sessionId: string
-): UIMessage[] | null {
+export function getChatMessages(workspaceId: number, sessionId: string): UIMessage[] | null {
   if (!getChatSession(workspaceId, sessionId)) return null;
 
   const rows = getDb()
@@ -143,7 +137,7 @@ export function getChatMessages(
       `SELECT message_id, role, parts_json
        FROM chat_messages
        WHERE session_id = ?
-       ORDER BY position ASC`
+       ORDER BY position ASC`,
     )
     .all(sessionId) as ChatMessageRow[];
 
@@ -157,7 +151,7 @@ export function getChatMessages(
 export function replaceChatMessages(
   workspaceId: number,
   sessionId: string,
-  messages: UIMessage[]
+  messages: UIMessage[],
 ): void {
   ensureChatSession(workspaceId, sessionId);
 
@@ -166,19 +160,13 @@ export function replaceChatMessages(
     db.prepare("DELETE FROM chat_messages WHERE session_id = ?").run(sessionId);
     const insert = db.prepare(
       `INSERT INTO chat_messages (session_id, message_id, role, parts_json, position)
-       VALUES (?, ?, ?, ?, ?)`
+       VALUES (?, ?, ?, ?, ?)`,
     );
     messages.forEach((message, index) => {
-      insert.run(
-        sessionId,
-        message.id,
-        message.role,
-        JSON.stringify(message.parts),
-        index
-      );
+      insert.run(sessionId, message.id, message.role, JSON.stringify(message.parts), index);
     });
     db.prepare(
-      "UPDATE chat_sessions SET updated_at = datetime('now') WHERE workspace_id = ? AND id = ?"
+      "UPDATE chat_sessions SET updated_at = datetime('now') WHERE workspace_id = ? AND id = ?",
     ).run(workspaceId, sessionId);
   })();
 }

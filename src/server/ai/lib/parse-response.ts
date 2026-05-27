@@ -11,7 +11,7 @@ function parseConfidence(raw: unknown): number | undefined {
 export function parseCategorizationResponse(
   text: string,
   validCategories: string[],
-  allowProposals: boolean
+  allowProposals: boolean,
 ): CategoryMapping[] {
   const jsonMatch = text.match(/\[[\s\S]*\]/);
   if (!jsonMatch) return [];

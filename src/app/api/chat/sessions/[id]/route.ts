@@ -7,10 +7,7 @@ import {
 } from "@/server/db/queries/chat-sessions";
 import { getWorkspaceIdFromRequest } from "@/server/lib/workspace-context";
 
-export async function GET(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const workspaceId = getWorkspaceIdFromRequest(request);
   const { id } = await params;
   const session = getChatSession(workspaceId, id);
@@ -26,10 +23,7 @@ export async function GET(
   });
 }
 
-export async function PATCH(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const workspaceId = getWorkspaceIdFromRequest(request);
   const { id } = await params;
   let body: unknown;
@@ -56,10 +50,7 @@ export async function PATCH(
   return NextResponse.json({ ...session, messageCount: messages.length });
 }
 
-export async function DELETE(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const workspaceId = getWorkspaceIdFromRequest(request);
   const { id } = await params;
   const deleted = deleteChatSession(workspaceId, id);

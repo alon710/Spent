@@ -1,6 +1,8 @@
 import "server-only";
 
 import { GoogleGenAI } from "@google/genai";
+import { parseCategorizationResponse } from "../lib/parse-response";
+import { buildCategorizationPrompt, SYSTEM_PROMPT } from "../prompts";
 import type {
   AIProvider,
   CategoryForCategorization,
@@ -8,27 +10,28 @@ import type {
   PastCorrection,
   TransactionForCategorization,
 } from "../types";
-import { buildCategorizationPrompt, SYSTEM_PROMPT } from "../prompts";
-import { parseCategorizationResponse } from "../lib/parse-response";
 
 export class GeminiProvider implements AIProvider {
   private client: GoogleGenAI;
 
-  constructor(apiKey: string, private model: string) {
+  constructor(
+    apiKey: string,
+    private model: string,
+  ) {
     this.client = new GoogleGenAI({ apiKey });
   }
 
   async categorize(
     transactions: TransactionForCategorization[],
     categories: CategoryForCategorization[],
-    options?: { allowProposals?: boolean; pastCorrections?: PastCorrection[] }
+    options?: { allowProposals?: boolean; pastCorrections?: PastCorrection[] },
   ): Promise<CategoryMapping[]> {
     const allowProposals = options?.allowProposals ?? false;
     const prompt = buildCategorizationPrompt(
       transactions,
       categories,
       allowProposals,
-      options?.pastCorrections ?? []
+      options?.pastCorrections ?? [],
     );
 
     const response = await this.client.models.generateContent({
@@ -43,7 +46,7 @@ export class GeminiProvider implements AIProvider {
     return parseCategorizationResponse(
       response.text ?? "",
       categories.map((c) => c.name),
-      allowProposals
+      allowProposals,
     );
   }
 }

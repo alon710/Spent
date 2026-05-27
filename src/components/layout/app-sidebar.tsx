@@ -1,17 +1,17 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
+import {
+  ArrowLeftRight,
+  LayoutDashboard,
+  Settings as SettingsIcon,
+  Sparkles,
+  Star,
+  Wallet,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useQuery } from "@tanstack/react-query";
-import {
-  LayoutDashboard,
-  Wallet,
-  ArrowLeftRight,
-  Sparkles,
-  Settings as SettingsIcon,
-  Star,
-} from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -87,11 +87,7 @@ export function AppSidebar() {
           href="/"
           className="-mx-1 flex items-center gap-2.5 rounded-lg px-1 py-1 transition-colors duration-200 hover:bg-sidebar-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar"
         >
-          <img
-            src="/logo_lightmode.svg"
-            alt="Spent"
-            className="h-7 w-auto shrink-0 dark:hidden"
-          />
+          <img src="/logo_lightmode.svg" alt="Spent" className="h-7 w-auto shrink-0 dark:hidden" />
           <img
             src="/logo_darkmode.svg"
             alt="Spent"
@@ -183,11 +179,7 @@ export function AppSidebar() {
           <SidebarMenuItem>
             <SidebarMenuButton
               render={
-                <a
-                  href="https://github.com/Shaya16/Spent"
-                  target="_blank"
-                  rel="noreferrer"
-                >
+                <a href="https://github.com/Shaya16/Spent" target="_blank" rel="noreferrer">
                   <Star />
                   <span>{t("starOnGitHub")}</span>
                 </a>

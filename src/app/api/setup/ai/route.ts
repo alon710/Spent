@@ -13,16 +13,10 @@ export async function POST(request: Request) {
   };
 
   if (body.provider === "claude" && !body.claudeApiKey) {
-    return NextResponse.json(
-      { error: "Enter a Claude API key." },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "Enter a Claude API key." }, { status: 400 });
   }
   if (body.provider === "gemini" && !body.geminiApiKey) {
-    return NextResponse.json(
-      { error: "Enter a Gemini API key." },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "Enter a Gemini API key." }, { status: 400 });
   }
 
   setSetting("ai_provider", body.provider);

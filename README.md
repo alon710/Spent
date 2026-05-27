@@ -20,6 +20,7 @@ Encrypted. AI-categorized. Yours.
 [![SQLite](https://img.shields.io/badge/SQLite-WAL-003B57?logo=sqlite&logoColor=white&style=flat-square)](https://sqlite.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](#license)
 [![Status: Beta](https://img.shields.io/badge/Status-Beta-blueviolet?style=flat-square)](#features)
+[![CI](https://github.com/Shaya16/Spent/actions/workflows/ci.yml/badge.svg)](https://github.com/Shaya16/Spent/actions/workflows/ci.yml)
 
 </div>
 
@@ -200,9 +201,10 @@ You can change providers any time from **Settings → AI provider**. Existing ca
 
 ## Requirements
 
-- **Node.js 22+**
+- **[Bun 1.3+](https://bun.com)** (used as the package manager and script runner)
+- **Node.js 22+** (still the runtime for the always-on service via `next start`)
 - **macOS 13+**, **Ubuntu 22+** (with systemd), or **Windows 11**
-- **Build tools for the menubar** (only if you want the tray; `npm run setup` will offer to install these for you if they're missing):
+- **Build tools for the menubar** (only if you want the tray; `bun run setup` will offer to install these for you if they're missing):
   - macOS: Xcode Command Line Tools (`xcode-select --install`)
   - Windows: .NET 8 SDK (`winget install Microsoft.DotNet.SDK.8`)
 - A bank account with **2FA disabled** (most Israeli banks require this for automation — OneZero is the exception)
@@ -214,13 +216,13 @@ You can change providers any time from **Settings → AI provider**. Existing ca
 ```bash
 git clone https://github.com/Shaya16/Spent.git
 cd spent
-npm install
-npm run setup
+bun install
+bun run setup
 ```
 
-`npm run setup` does everything: builds the Next.js app, installs the always-on service (LaunchAgent on macOS / systemd on Linux / Task Scheduler on Windows), builds the platform menubar from source, installs it to the standard location, registers it to auto-start at login, and opens the dashboard. On Windows it also writes a `127.0.0.1 spent.localhost` line to your hosts file (the only step that asks for Administrator). macOS and Linux resolve `*.localhost` natively, so setup runs sudo-free there.
+`bun run setup` does everything: builds the Next.js app, installs the always-on service (LaunchAgent on macOS / systemd on Linux / Task Scheduler on Windows), builds the platform menubar from source, installs it to the standard location, registers it to auto-start at login, and opens the dashboard. On Windows it also writes a `127.0.0.1 spent.localhost` line to your hosts file (the only step that asks for Administrator). macOS and Linux resolve `*.localhost` natively, so setup runs sudo-free there.
 
-On Linux there is no native menubar. `npm run setup` installs the service and opens the browser. Control the service with `npm run service:*` (see below).
+On Linux there is no native menubar. `bun run setup` installs the service and opens the browser. Control the service with `bun run service:*` (see below).
 
 First launch of the menubar on macOS/Windows shows an unsigned-binary warning (Gatekeeper / SmartScreen). That's expected: you built it locally and didn't pay for a code-signing certificate. Right-click → Open (macOS) or "More info" → "Run anyway" (Windows). One-time.
 
@@ -241,32 +243,33 @@ In the browser:
 | What you want | Run |
 |---|---|
 | Just use the app (no coding) | Open `http://spent.localhost:41234` |
-| Code and see changes instantly | `npm run dev` → `http://127.0.0.1:3000` |
-| Update the always-on app after editing | `npm run service:reload` |
+| Code and see changes instantly | `bun dev` → `http://127.0.0.1:3000` |
+| Update the always-on app after editing | `bun run service:reload` |
+| Run the full CI gate locally before pushing | `bun run ci` |
 
 Rare cases:
 
-- Changed the menu bar app source → `npm run menubar:install:mac` (or `:windows`) to rebuild and reinstall.
-- Changed install scripts or hostname → `npm run service:uninstall && npm run service:install`.
+- Changed the menu bar app source → `bun run menubar:install:mac` (or `:windows`) to rebuild and reinstall.
+- Changed install scripts or hostname → `bun run service:uninstall && bun run service:install`.
 
 ## Service commands
 
 | Command | What it does |
 |---|---|
-| `npm run service:status` | Running? Bound to loopback? |
-| `npm run service:start` / `:stop` | Start/stop now |
-| `npm run service:reload` | Rebuild and restart |
-| `npm run service:logs` | Tail server logs |
-| `npm run service:open` | Open the app in your browser |
-| `npm run service:uninstall` | Remove auto-start and hosts entry. `data/` is untouched. |
+| `bun run service:status` | Running? Bound to loopback? |
+| `bun run service:start` / `:stop` | Start/stop now |
+| `bun run service:reload` | Rebuild and restart |
+| `bun run service:logs` | Tail server logs |
+| `bun run service:open` | Open the app in your browser |
+| `bun run service:uninstall` | Remove auto-start and hosts entry. `data/` is untouched. |
 
 ## Uninstall
 
 ```bash
-npm run uninstall
+bun run uninstall
 ```
 
-Reverses everything `npm run setup` installed:
+Reverses everything `bun run setup` installed:
 
 - Stops the background service and removes the LaunchAgent / Task Scheduler entry / systemd unit.
 - Windows: removes the `127.0.0.1 spent.localhost` line from your hosts file (asks for Administrator). macOS/Linux don't have a hosts entry to remove unless you're upgrading from an older install — in that case the legacy `spent.local` line is cleaned up automatically.
@@ -282,7 +285,7 @@ If you only want to remove the menubar but keep the always-on web app:
 - **macOS**: `rm -rf ~/Applications/Spent.app` and remove "Spent" from System Settings → General → Login Items.
 - **Windows**: delete `%LOCALAPPDATA%\Programs\Spent\` and remove `Spent.lnk` from `shell:startup`.
 
-If you only want to remove the always-on service but keep the menubar (so it's there if you reinstall later): `npm run service:uninstall`.
+If you only want to remove the always-on service but keep the menubar (so it's there if you reinstall later): `bun run service:uninstall`.
 
 ## Security at a glance
 
@@ -326,7 +329,7 @@ spent/
 │       ├── db/               SQLite singleton, migrations, query helpers
 │       ├── lib/              Encryption, dedup, transfer detection, pace
 │       └── scrapers/         Wrapper around israeli-bank-scrapers
-├── menubar/                  Tray companions (built locally by `npm run setup`)
+├── menubar/                  Tray companions (built locally by `bun run setup`)
 │   ├── mac/                  Swift MenuBarExtra app
 │   └── windows/              C# WinForms NotifyIcon app
 ├── scripts/service/          LaunchAgent / systemd / Task Scheduler installer
@@ -370,6 +373,7 @@ Conventions:
 - TypeScript strict mode. No `any` without a comment.
 - Conventional commits: `feat:`, `fix:`, `chore:`, `docs:`, `refactor:`.
 - Comments only where the "why" isn't obvious. No em dashes in code, commits, or docs.
+- Run `bun run ci` before opening a PR — same five checks GitHub Actions enforces strictly: formatter (Biome), TypeScript, i18n keys (next-intl-recommended `@lingual/i18n-check`), dead code (knip), React Compiler healthcheck, and `bun test`.
 
 ## License
 
