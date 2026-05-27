@@ -1,10 +1,10 @@
 import "server-only";
 
-import type { AIProvider } from "./types";
-import { ClaudeProvider } from "./providers/claude";
-import { OllamaProvider } from "./providers/ollama";
 import { getSetting } from "../db/queries/settings";
 import { decrypt } from "../lib/encryption";
+import { ClaudeProvider } from "./providers/claude";
+import { OllamaProvider } from "./providers/ollama";
+import type { AIProvider } from "./types";
 
 export function createAIProvider(): AIProvider | null {
   const provider = getSetting("ai_provider");

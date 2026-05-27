@@ -1,21 +1,13 @@
 "use client";
 
-import { Fragment, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { ChevronRight, Check } from "lucide-react";
+import { Check, ChevronRight } from "lucide-react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  RECOMMENDED_OLLAMA_MODELS,
-  type OllamaModelInfo,
-} from "@/lib/types";
-import {
-  listOllamaModels,
-  pullOllamaModel,
-  saveAIConfig,
-  type PullEvent,
-} from "@/lib/api";
+import { listOllamaModels, type PullEvent, pullOllamaModel, saveAIConfig } from "@/lib/api";
+import { type OllamaModelInfo, RECOMMENDED_OLLAMA_MODELS } from "@/lib/types";
 
 type AIChoice = "claude" | "ollama" | "none";
 
@@ -100,7 +92,7 @@ export function AIStep({ onComplete, onBack }: AIStepProps) {
     return () => {
       cancelled = true;
     };
-  }, [choice, ollamaUrl, pullState?.status]);
+  }, [choice, ollamaUrl]);
 
   const modelInstalled = installedModels.includes(ollamaModel);
 
@@ -118,29 +110,23 @@ export function AIStep({ onComplete, onBack }: AIStepProps) {
       speed: 0,
       etaSeconds: null,
     });
-    const { cancel } = pullOllamaModel(
-      ollamaModel,
-      ollamaUrl,
-      (event: PullEvent) => {
-        if (event.type === "progress") {
-          setPullState({
-            status: event.data.status,
-            completed: event.data.completed ?? 0,
-            total: event.data.total ?? 0,
-            speed: event.data.speed ?? 0,
-            etaSeconds: event.data.etaSeconds ?? null,
-          });
-        } else if (event.type === "complete") {
-          setPullState(null);
-          setInstalledModels((prev) =>
-            prev.includes(ollamaModel) ? prev : [...prev, ollamaModel]
-          );
-        } else if (event.type === "error") {
-          setPullError(event.data.message ?? "Failed to download the model.");
-          setPullState(null);
-        }
+    const { cancel } = pullOllamaModel(ollamaModel, ollamaUrl, (event: PullEvent) => {
+      if (event.type === "progress") {
+        setPullState({
+          status: event.data.status,
+          completed: event.data.completed ?? 0,
+          total: event.data.total ?? 0,
+          speed: event.data.speed ?? 0,
+          etaSeconds: event.data.etaSeconds ?? null,
+        });
+      } else if (event.type === "complete") {
+        setPullState(null);
+        setInstalledModels((prev) => (prev.includes(ollamaModel) ? prev : [...prev, ollamaModel]));
+      } else if (event.type === "error") {
+        setPullError(event.data.message ?? "Failed to download the model.");
+        setPullState(null);
       }
-    );
+    });
     pullCancelRef.current = cancel;
   };
 
@@ -169,19 +155,15 @@ export function AIStep({ onComplete, onBack }: AIStepProps) {
           How should we categorize?
         </h1>
         <p className="text-sm leading-relaxed text-muted-foreground">
-          Spent uses AI to group your transactions into categories. You can
-          change this any time in settings.
+          Spent uses AI to group your transactions into categories. You can change this any time in
+          settings.
         </p>
       </header>
 
       <div className="flex flex-col gap-1.5">
         {PROVIDERS.map((p) => (
           <Fragment key={p.id}>
-            <ProviderRow
-              provider={p}
-              selected={choice === p.id}
-              onClick={() => setChoice(p.id)}
-            />
+            <ProviderRow provider={p} selected={choice === p.id} onClick={() => setChoice(p.id)} />
             <AnimatePresence initial={false}>
               {choice === p.id && (
                 <motion.div
@@ -256,9 +238,7 @@ function ProviderRow({
       className="flex items-center gap-3 rounded-xl border bg-card px-3 py-2.5 text-start transition-colors hover:bg-accent/40"
       style={{
         borderColor: selected ? tint.mid : "var(--border)",
-        background: selected
-          ? `color-mix(in oklch, ${tint.bg} 35%, var(--card))`
-          : undefined,
+        background: selected ? `color-mix(in oklch, ${tint.bg} 35%, var(--card))` : undefined,
         borderWidth: 1.5,
       }}
     >
@@ -270,9 +250,7 @@ function ProviderRow({
       </div>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
-          <span className="text-sm font-bold tracking-tight">
-            {provider.title}
-          </span>
+          <span className="text-sm font-bold tracking-tight">{provider.title}</span>
           {provider.recommended && (
             <span
               className="rounded-full px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-[0.06em] text-white"
@@ -282,9 +260,7 @@ function ProviderRow({
             </span>
           )}
         </div>
-        <div className="mt-0.5 truncate text-[11px] text-muted-foreground">
-          {provider.tagline}
-        </div>
+        <div className="mt-0.5 truncate text-[11px] text-muted-foreground">{provider.tagline}</div>
       </div>
       {selected ? (
         <span
@@ -314,7 +290,10 @@ function ClaudeConfig({
   return (
     <div className="space-y-2 rounded-xl border border-border bg-card/60 p-4">
       <div className="flex items-center justify-between gap-2">
-        <Label htmlFor="claude-api-key" className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground">
+        <Label
+          htmlFor="claude-api-key"
+          className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground"
+        >
           API key
         </Label>
         <a
@@ -379,9 +358,7 @@ function OllamaConfig({
         className="flex items-center gap-2 rounded-lg px-3 py-2 text-[11px] font-medium"
         style={{
           background:
-            reachable === false
-              ? "rgba(232, 153, 104, 0.18)"
-              : "rgba(168, 209, 141, 0.22)",
+            reachable === false ? "rgba(232, 153, 104, 0.18)" : "rgba(168, 209, 141, 0.22)",
           color: reachable === false ? "#9a4a26" : "#3e5a2e",
         }}
       >
@@ -409,7 +386,10 @@ function OllamaConfig({
       </div>
 
       <div className="space-y-1">
-        <Label htmlFor="ollama-url" className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground">
+        <Label
+          htmlFor="ollama-url"
+          className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground"
+        >
           Server URL
         </Label>
         <Input
@@ -437,21 +417,15 @@ function OllamaConfig({
               }`}
             >
               <div className="flex items-baseline justify-between gap-1">
-                <span className="truncate text-[11px] font-bold tracking-tight">
-                  {m.name}
-                </span>
+                <span className="truncate text-[11px] font-bold tracking-tight">{m.name}</span>
                 {m.recommended && (
                   <span className="rounded-full bg-primary/10 px-1 py-0 text-[8px] font-bold uppercase tracking-wider text-primary">
                     rec
                   </span>
                 )}
               </div>
-              <div className="mt-0.5 font-mono text-[9px] text-muted-foreground">
-                {m.sizeGb} GB
-              </div>
-              <p className="mt-1 text-[10px] leading-snug text-muted-foreground">
-                {m.description}
-              </p>
+              <div className="mt-0.5 font-mono text-[9px] text-muted-foreground">{m.sizeGb} GB</div>
+              <p className="mt-1 text-[10px] leading-snug text-muted-foreground">{m.description}</p>
             </button>
           ))}
         </div>
@@ -473,9 +447,8 @@ function OllamaConfig({
 function ManualNote() {
   return (
     <div className="rounded-xl border border-border bg-card/60 p-4 text-[12px] leading-relaxed text-muted-foreground">
-      Spent will leave transactions <span className="text-foreground">uncategorized</span>;
-      you can assign categories from the transactions table any time. Switch to
-      Claude or Ollama later in{" "}
+      Spent will leave transactions <span className="text-foreground">uncategorized</span>; you can
+      assign categories from the transactions table any time. Switch to Claude or Ollama later in{" "}
       <span className="font-bold text-foreground">Settings → AI</span>.
     </div>
   );
@@ -498,9 +471,7 @@ function OllamaPullCTA({
   onPull: () => void;
   onCancel: () => void;
 }) {
-  const info: OllamaModelInfo | undefined = RECOMMENDED_OLLAMA_MODELS.find(
-    (m) => m.name === model
-  );
+  const info: OllamaModelInfo | undefined = RECOMMENDED_OLLAMA_MODELS.find((m) => m.name === model);
 
   if (installed) {
     return (
@@ -512,16 +483,12 @@ function OllamaPullCTA({
 
   if (pullState) {
     const percent =
-      pullState.total > 0
-        ? Math.round((pullState.completed / pullState.total) * 100)
-        : 0;
+      pullState.total > 0 ? Math.round((pullState.completed / pullState.total) * 100) : 0;
     return (
       <div className="space-y-2 rounded-lg border border-border bg-background/50 p-2.5">
         <div className="flex items-center justify-between text-[12px]">
           <span className="font-medium">
-            {pullState.status === "starting"
-              ? "Starting download..."
-              : pullState.status}
+            {pullState.status === "starting" ? "Starting download..." : pullState.status}
           </span>
           <button
             type="button"
@@ -541,8 +508,7 @@ function OllamaPullCTA({
         </div>
         <div className="flex items-center justify-between text-[10px] tabular-nums text-muted-foreground">
           <span>
-            {formatBytes(pullState.completed)} / {formatBytes(pullState.total)}{" "}
-            ({percent}%)
+            {formatBytes(pullState.completed)} / {formatBytes(pullState.total)} ({percent}%)
           </span>
           <span>
             {pullState.speed > 0 ? `${formatBytes(pullState.speed)}/s` : ""}
@@ -557,17 +523,10 @@ function OllamaPullCTA({
 
   return (
     <div className="space-y-1">
-      <Button
-        type="button"
-        onClick={onPull}
-        disabled={reachable === false}
-        className="w-full"
-      >
+      <Button type="button" onClick={onPull} disabled={reachable === false} className="w-full">
         ↓ Download {model} {info ? `(${info.sizeGb} GB)` : ""}
       </Button>
-      {pullError && (
-        <p className="text-[11px] text-destructive">{pullError}</p>
-      )}
+      {pullError && <p className="text-[11px] text-destructive">{pullError}</p>}
     </div>
   );
 }
@@ -576,7 +535,7 @@ function formatBytes(b: number): string {
   if (b <= 0) return "0 B";
   const u = ["B", "KB", "MB", "GB"];
   const i = Math.min(Math.floor(Math.log10(b) / 3), u.length - 1);
-  return `${(b / Math.pow(1000, i)).toFixed(i >= 2 ? 2 : 0)} ${u[i]}`;
+  return `${(b / 1000 ** i).toFixed(i >= 2 ? 2 : 0)} ${u[i]}`;
 }
 
 function formatDuration(s: number): string {

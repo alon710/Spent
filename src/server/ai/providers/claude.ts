@@ -1,6 +1,7 @@
 import "server-only";
 
 import Anthropic from "@anthropic-ai/sdk";
+import { buildCategorizationPrompt, SYSTEM_PROMPT } from "../prompts";
 import type {
   AIProvider,
   CategoryForCategorization,
@@ -8,7 +9,6 @@ import type {
   PastCorrection,
   TransactionForCategorization,
 } from "../types";
-import { buildCategorizationPrompt, SYSTEM_PROMPT } from "../prompts";
 
 function parseConfidence(raw: unknown): number | undefined {
   const n = typeof raw === "number" ? raw : Number(raw);
@@ -28,7 +28,7 @@ export class ClaudeProvider implements AIProvider {
   async categorize(
     transactions: TransactionForCategorization[],
     categories: CategoryForCategorization[],
-    options?: { allowProposals?: boolean; pastCorrections?: PastCorrection[] }
+    options?: { allowProposals?: boolean; pastCorrections?: PastCorrection[] },
   ): Promise<CategoryMapping[]> {
     const allowProposals = options?.allowProposals ?? false;
     const pastCorrections = options?.pastCorrections ?? [];
@@ -36,7 +36,7 @@ export class ClaudeProvider implements AIProvider {
       transactions,
       categories,
       allowProposals,
-      pastCorrections
+      pastCorrections,
     );
 
     const response = await this.client.messages.create({
@@ -46,17 +46,20 @@ export class ClaudeProvider implements AIProvider {
       messages: [{ role: "user", content: prompt }],
     });
 
-    const text =
-      response.content[0].type === "text" ? response.content[0].text : "";
+    const text = response.content[0].type === "text" ? response.content[0].text : "";
 
-    return parseResponse(text, categories.map((c) => c.name), allowProposals);
+    return parseResponse(
+      text,
+      categories.map((c) => c.name),
+      allowProposals,
+    );
   }
 }
 
 function parseResponse(
   text: string,
   validCategories: string[],
-  allowProposals: boolean
+  allowProposals: boolean,
 ): CategoryMapping[] {
   const jsonMatch = text.match(/\[[\s\S]*\]/);
   if (!jsonMatch) return [];

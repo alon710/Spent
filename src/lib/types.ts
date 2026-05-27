@@ -92,11 +92,7 @@ export interface CategoryBreakdown {
   count: number;
 }
 
-export type BudgetStatus =
-  | "plenty-left"
-  | "on-track"
-  | "heads-up"
-  | "over";
+export type BudgetStatus = "plenty-left" | "on-track" | "heads-up" | "over";
 
 export interface CategoryWithData {
   categoryId: number;
