@@ -13,7 +13,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { RECOMMENDED_OLLAMA_MODELS, type AppSettings } from "@/lib/types";
+import {
+  RECOMMENDED_GEMINI_MODELS,
+  RECOMMENDED_OLLAMA_MODELS,
+  type AppSettings,
+} from "@/lib/types";
 import { getSettings, saveAIConfig } from "@/lib/api";
 import { OllamaModelStatus } from "./ollama-model-status";
 import { SectionShell, SettingCard } from "./section-shell";
@@ -35,6 +39,17 @@ function ollamaModelDescription(
   } catch {
     return fallback;
   }
+}
+
+function errorMessage(err: unknown): string {
+  if (!(err instanceof Error)) return "Request failed";
+  try {
+    const parsed = JSON.parse(err.message) as { error?: unknown };
+    if (typeof parsed.error === "string") return parsed.error;
+  } catch {
+    // The shared fetch helper also throws plain text for non-JSON errors.
+  }
+  return err.message;
 }
 
 export function AISection() {
@@ -70,8 +85,11 @@ function AIForm({ settings }: { settings: AppSettings }) {
   );
   const [apiKey, setApiKey] = useState("");
   const [geminiKey, setGeminiKey] = useState("");
+  const [geminiModel, setGeminiModel] = useState(settings.geminiModel);
   const [ollamaUrl, setOllamaUrl] = useState(settings.ollamaUrl);
   const [ollamaModel, setOllamaModel] = useState(settings.ollamaModel);
+  const missingClaudeKey = provider === "claude" && !apiKey && !settings.hasClaudeApiKey;
+  const missingGeminiKey = provider === "gemini" && !geminiKey && !settings.hasGeminiApiKey;
 
   const mutation = useMutation({
     mutationFn: () =>
@@ -79,6 +97,7 @@ function AIForm({ settings }: { settings: AppSettings }) {
         provider,
         claudeApiKey: provider === "claude" && apiKey ? apiKey : undefined,
         geminiApiKey: provider === "gemini" && geminiKey ? geminiKey : undefined,
+        geminiModel: provider === "gemini" ? geminiModel : undefined,
         ollamaUrl: provider === "ollama" ? ollamaUrl : undefined,
         ollamaModel: provider === "ollama" ? ollamaModel : undefined,
       }),
@@ -87,6 +106,9 @@ function AIForm({ settings }: { settings: AppSettings }) {
       toast.success(t("aiSettingsSaved"));
       setApiKey("");
       setGeminiKey("");
+    },
+    onError: (err) => {
+      toast.error(errorMessage(err));
     },
   });
 
@@ -154,7 +176,7 @@ function AIForm({ settings }: { settings: AppSettings }) {
               placeholder="sk-ant-..."
             />
             <p className="text-xs text-muted-foreground">
-              {t("leaveBlankHint")}
+              {settings.hasClaudeApiKey ? t("leaveBlankHint") : t("apiKeyRequiredHint")}
             </p>
           </div>
         </SettingCard>
@@ -165,18 +187,44 @@ function AIForm({ settings }: { settings: AppSettings }) {
           title={t("geminiKeyCardTitle")}
           description={t("geminiKeyCardDescription")}
         >
-          <div className="space-y-2">
-            <Label htmlFor="gemini-key">{t("apiKeyLabel")}</Label>
-            <Input
-              id="gemini-key"
-              type="password"
-              value={geminiKey}
-              onChange={(e) => setGeminiKey(e.target.value)}
-              placeholder="AIza..."
-            />
-            <p className="text-xs text-muted-foreground">
-              {t("leaveBlankHint")}
-            </p>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="gemini-key">{t("apiKeyLabel")}</Label>
+              <Input
+                id="gemini-key"
+                type="password"
+                value={geminiKey}
+                onChange={(e) => setGeminiKey(e.target.value)}
+                placeholder="AIza..."
+              />
+              <p className="text-xs text-muted-foreground">
+                {settings.hasGeminiApiKey ? t("leaveBlankHint") : t("apiKeyRequiredHint")}
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label>{t("modelLabel")}</Label>
+              <Select
+                value={geminiModel}
+                onValueChange={(v) => v && setGeminiModel(v)}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent align="start">
+                  {RECOMMENDED_GEMINI_MODELS.map((m) => (
+                    <SelectItem key={m.name} value={m.name}>
+                      {m.recommended
+                        ? `${m.name} (${t("recommendedTag")})`
+                        : m.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                {RECOMMENDED_GEMINI_MODELS.find((m) => m.name === geminiModel)
+                  ?.description ?? t("geminiModelDescription")}
+              </p>
+            </div>
           </div>
         </SettingCard>
       )}
@@ -202,10 +250,10 @@ function AIForm({ settings }: { settings: AppSettings }) {
                 value={ollamaModel}
                 onValueChange={(v) => v && setOllamaModel(v)}
               >
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent align="start">
                   {RECOMMENDED_OLLAMA_MODELS.map((m) => (
                     <SelectItem key={m.name} value={m.name}>
                       <div className="flex items-center gap-2">
@@ -238,7 +286,7 @@ function AIForm({ settings }: { settings: AppSettings }) {
       <div className="flex justify-end">
         <Button
           onClick={() => mutation.mutate()}
-          disabled={mutation.isPending}
+          disabled={mutation.isPending || missingClaudeKey || missingGeminiKey}
         >
           {mutation.isPending ? tCommon("saving") : t("saveAiSettings")}
         </Button>

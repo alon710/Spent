@@ -136,6 +136,7 @@ export function saveAIConfig(config: {
   provider: "claude" | "gemini" | "ollama" | "none";
   claudeApiKey?: string;
   geminiApiKey?: string;
+  geminiModel?: string;
   ollamaUrl?: string;
   ollamaModel?: string;
 }) {

@@ -4,6 +4,7 @@ import type { AIProvider } from "./types";
 import { ClaudeProvider } from "./providers/claude";
 import { GeminiProvider } from "./providers/gemini";
 import { OllamaProvider } from "./providers/ollama";
+import { RECOMMENDED_GEMINI_MODELS } from "@/lib/types";
 import { getSetting } from "../db/queries/settings";
 import { decrypt } from "../lib/encryption";
 
@@ -39,7 +40,13 @@ export function createAIProvider(): AIProvider | null {
       authTag: Buffer.from(authTag, "hex"),
     });
 
-    return new GeminiProvider(apiKey);
+    const storedModel = getSetting("ai_gemini_model");
+    const model =
+      storedModel &&
+      RECOMMENDED_GEMINI_MODELS.some((m) => m.name === storedModel)
+        ? storedModel
+        : RECOMMENDED_GEMINI_MODELS[0].name;
+    return new GeminiProvider(apiKey, model);
   }
 
   if (provider === "ollama") {

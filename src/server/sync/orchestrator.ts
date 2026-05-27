@@ -75,8 +75,18 @@ export interface WorkspaceSummary {
   aiWarning: string | null;
 }
 
-export function friendlyAIError(err: unknown, modelName: string): string {
+export function friendlyAIError(
+  err: unknown,
+  modelName: string,
+  provider?: string
+): string {
   const msg = err instanceof Error ? err.message : String(err);
+  if (
+    provider === "gemini" &&
+    /ECONNREFUSED|fetch failed|network|ENOTFOUND|ETIMEDOUT/i.test(msg)
+  ) {
+    return "Gemini is not reachable. Check your internet connection and Gemini API key in settings.";
+  }
   if (/model.*not found|pull.*model|404/i.test(msg)) {
     return `Ollama model "${modelName}" is not installed. Run: ollama pull ${modelName}`;
   }
@@ -545,7 +555,11 @@ export async function syncWorkspace(
               err
             );
             if (!aiWarning) {
-              aiWarning = friendlyAIError(err, settings.ollamaModel);
+              aiWarning = friendlyAIError(
+                err,
+                settings.ollamaModel,
+                settings.aiProvider
+              );
             }
           }
         }

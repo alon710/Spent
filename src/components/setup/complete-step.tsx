@@ -34,7 +34,7 @@ export function CompleteStep({ onFinish }: CompleteStepProps) {
     settings?.aiProvider === "claude"
       ? "Claude (Anthropic)"
       : settings?.aiProvider === "gemini"
-        ? "Gemini (Google)"
+        ? `Gemini · ${settings?.geminiModel ?? "stable"}`
         : settings?.aiProvider === "ollama"
           ? `Ollama · ${settings?.ollamaModel ?? "local"}`
           : "Manual categorization";

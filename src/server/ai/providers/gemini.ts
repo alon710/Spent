@@ -21,7 +21,7 @@ function parseConfidence(raw: unknown): number | undefined {
 export class GeminiProvider implements AIProvider {
   private client: GoogleGenAI;
 
-  constructor(apiKey: string) {
+  constructor(apiKey: string, private model: string) {
     this.client = new GoogleGenAI({ apiKey });
   }
 
@@ -40,7 +40,7 @@ export class GeminiProvider implements AIProvider {
     );
 
     const response = await this.client.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: this.model,
       contents: prompt,
       config: {
         systemInstruction: SYSTEM_PROMPT,
