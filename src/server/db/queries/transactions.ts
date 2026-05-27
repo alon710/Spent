@@ -220,9 +220,9 @@ export function queryTransactions(
   }
   const kind: TransactionKindFilter = params.kind ?? "all";
   if (kind === "income") {
-    conditions.push("t.charged_amount > 0");
+    conditions.push("t.kind = 'income'");
   } else if (kind === "expense") {
-    conditions.push("t.charged_amount < 0");
+    conditions.push("t.kind = 'expense'");
   }
   if (params.provider) {
     conditions.push("t.provider = ?");
@@ -724,7 +724,7 @@ export function getTransactionsSummary(
     .prepare(
       `SELECT COALESCE(SUM(charged_amount), 0) as total, COUNT(*) as count
        FROM transactions
-       WHERE ${baseWhere} AND charged_amount > 0`
+       WHERE ${baseWhere} AND kind = 'income'`
     )
     .get(...baseValues) as { total: number; count: number };
 
@@ -732,20 +732,19 @@ export function getTransactionsSummary(
     .prepare(
       `SELECT COALESCE(SUM(ABS(charged_amount)), 0) as total, COUNT(*) as count
        FROM transactions
-       WHERE ${baseWhere} AND charged_amount < 0`
+       WHERE ${baseWhere} AND kind = 'expense'`
     )
     .get(...baseValues) as { total: number; count: number };
 
   const pickLargest = (sign: "income" | "expense"): TransactionWithCategory | null => {
-    const cmp = sign === "income" ? "> 0" : "< 0";
     const tConditions = [
       "t.workspace_id = ?",
       "t.date >= ?",
       "t.date <= ?",
       "t.status = 'completed'",
-      `t.charged_amount ${cmp}`,
+      "t.kind = ?",
     ];
-    const tValues: (string | number)[] = [workspaceId, from, to];
+    const tValues: (string | number)[] = [workspaceId, from, to, sign];
     appendCredentialIdsFilter(tConditions, tValues, summaryCredentialIds, "t.");
     const row = db
       .prepare(
@@ -764,7 +763,7 @@ export function getTransactionsSummary(
               SUM(ABS(charged_amount)) as total,
               COUNT(*) as count
        FROM transactions
-       WHERE ${baseWhere} AND charged_amount < 0
+       WHERE ${baseWhere} AND kind = 'expense'
        GROUP BY description
        ORDER BY total DESC
        LIMIT 5`
