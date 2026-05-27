@@ -280,7 +280,7 @@ export interface SetupStatus {
 
 export interface AppSettings {
   monthsToSync: number;
-  aiProvider: "claude" | "ollama" | "none";
+  aiProvider: "claude" | "gemini" | "ollama" | "none";
   ollamaUrl: string;
   ollamaModel: string;
   showBrowser: boolean;

@@ -69,6 +69,7 @@ function AIForm({ settings }: { settings: AppSettings }) {
     settings.aiProvider
   );
   const [apiKey, setApiKey] = useState("");
+  const [geminiKey, setGeminiKey] = useState("");
   const [ollamaUrl, setOllamaUrl] = useState(settings.ollamaUrl);
   const [ollamaModel, setOllamaModel] = useState(settings.ollamaModel);
 
@@ -76,7 +77,8 @@ function AIForm({ settings }: { settings: AppSettings }) {
     mutationFn: () =>
       saveAIConfig({
         provider,
-        apiKey: provider === "claude" && apiKey ? apiKey : undefined,
+        claudeApiKey: provider === "claude" && apiKey ? apiKey : undefined,
+        geminiApiKey: provider === "gemini" && geminiKey ? geminiKey : undefined,
         ollamaUrl: provider === "ollama" ? ollamaUrl : undefined,
         ollamaModel: provider === "ollama" ? ollamaModel : undefined,
       }),
@@ -84,6 +86,7 @@ function AIForm({ settings }: { settings: AppSettings }) {
       queryClient.invalidateQueries({ queryKey: ["settings"] });
       toast.success(t("aiSettingsSaved"));
       setApiKey("");
+      setGeminiKey("");
     },
   });
 
@@ -93,13 +96,18 @@ function AIForm({ settings }: { settings: AppSettings }) {
         title={t("providerCardTitle")}
         description={t("providerCardDescription")}
       >
-        <div className="grid gap-2 sm:grid-cols-3">
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
           {(
             [
               {
                 id: "claude" as const,
                 title: t("providerClaudeTitle"),
                 desc: t("providerClaudeDesc"),
+              },
+              {
+                id: "gemini" as const,
+                title: t("providerGeminiTitle"),
+                desc: t("providerGeminiDesc"),
               },
               {
                 id: "ollama" as const,
@@ -144,6 +152,27 @@ function AIForm({ settings }: { settings: AppSettings }) {
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
               placeholder="sk-ant-..."
+            />
+            <p className="text-xs text-muted-foreground">
+              {t("leaveBlankHint")}
+            </p>
+          </div>
+        </SettingCard>
+      )}
+
+      {provider === "gemini" && (
+        <SettingCard
+          title={t("geminiKeyCardTitle")}
+          description={t("geminiKeyCardDescription")}
+        >
+          <div className="space-y-2">
+            <Label htmlFor="gemini-key">{t("apiKeyLabel")}</Label>
+            <Input
+              id="gemini-key"
+              type="password"
+              value={geminiKey}
+              onChange={(e) => setGeminiKey(e.target.value)}
+              placeholder="AIza..."
             />
             <p className="text-xs text-muted-foreground">
               {t("leaveBlankHint")}

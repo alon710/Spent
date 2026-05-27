@@ -17,7 +17,7 @@ import {
   type PullEvent,
 } from "@/lib/api";
 
-type AIChoice = "claude" | "ollama" | "none";
+type AIChoice = "claude" | "gemini" | "ollama" | "none";
 
 interface AIStepProps {
   onComplete: () => void;
@@ -34,6 +34,7 @@ interface PullState {
 
 const TINTS = {
   claude: { bg: "#fad6c0", mid: "#e89968", ink: "#7a4222" },
+  gemini: { bg: "#d3e3fd", mid: "#7fa6f0", ink: "#2b4a8a" },
   ollama: { bg: "#dbedd1", mid: "#a8d18d", ink: "#3e5a2e" },
   none: { bg: "#e6dfd1", mid: "#a89978", ink: "#5b5240" },
 } as const;
@@ -55,6 +56,12 @@ const PROVIDERS: ProviderMeta[] = [
     recommended: true,
   },
   {
+    id: "gemini",
+    title: "Gemini",
+    tagline: "Google AI Studio, generous free tier",
+    icon: "✧",
+  },
+  {
     id: "ollama",
     title: "Ollama",
     tagline: "Runs locally, free and private",
@@ -72,6 +79,8 @@ export function AIStep({ onComplete, onBack }: AIStepProps) {
   const [choice, setChoice] = useState<AIChoice>("claude");
   const [apiKey, setApiKey] = useState("");
   const [showKey, setShowKey] = useState(false);
+  const [geminiKey, setGeminiKey] = useState("");
+  const [showGeminiKey, setShowGeminiKey] = useState(false);
   const [ollamaUrl, setOllamaUrl] = useState("http://localhost:11434");
   const [ollamaModel, setOllamaModel] = useState("llama3.2:3b");
   const [installedModels, setInstalledModels] = useState<string[]>([]);
@@ -107,6 +116,7 @@ export function AIStep({ onComplete, onBack }: AIStepProps) {
   const canContinue =
     choice === "none" ||
     (choice === "claude" && /^sk-ant-/.test(apiKey) && apiKey.length > 25) ||
+    (choice === "gemini" && /^AIza/.test(geminiKey) && geminiKey.length > 30) ||
     (choice === "ollama" && modelInstalled);
 
   const handlePull = () => {
@@ -149,7 +159,8 @@ export function AIStep({ onComplete, onBack }: AIStepProps) {
     try {
       await saveAIConfig({
         provider: choice,
-        apiKey: choice === "claude" ? apiKey : undefined,
+        claudeApiKey: choice === "claude" ? apiKey : undefined,
+        geminiApiKey: choice === "gemini" ? geminiKey : undefined,
         ollamaUrl: choice === "ollama" ? ollamaUrl : undefined,
         ollamaModel: choice === "ollama" ? ollamaModel : undefined,
       });
@@ -199,6 +210,14 @@ export function AIStep({ onComplete, onBack }: AIStepProps) {
                         setApiKey={setApiKey}
                         showKey={showKey}
                         setShowKey={setShowKey}
+                      />
+                    )}
+                    {p.id === "gemini" && (
+                      <GeminiConfig
+                        apiKey={geminiKey}
+                        setApiKey={setGeminiKey}
+                        showKey={showGeminiKey}
+                        setShowKey={setShowGeminiKey}
                       />
                     )}
                     {p.id === "ollama" && (
@@ -350,6 +369,56 @@ function ClaudeConfig({
   );
 }
 
+function GeminiConfig({
+  apiKey,
+  setApiKey,
+  showKey,
+  setShowKey,
+}: {
+  apiKey: string;
+  setApiKey: (v: string) => void;
+  showKey: boolean;
+  setShowKey: (v: boolean) => void;
+}) {
+  return (
+    <div className="space-y-2 rounded-xl border border-border bg-card/60 p-4">
+      <div className="flex items-center justify-between gap-2">
+        <Label htmlFor="gemini-api-key" className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground">
+          API key
+        </Label>
+        <a
+          href="https://aistudio.google.com/apikey"
+          target="_blank"
+          rel="noreferrer"
+          className="text-[11px] font-medium text-primary hover:underline"
+        >
+          Get a key ↗
+        </a>
+      </div>
+      <div className="relative">
+        <Input
+          id="gemini-api-key"
+          type={showKey ? "text" : "password"}
+          value={apiKey}
+          onChange={(e) => setApiKey(e.target.value)}
+          placeholder="AIza..."
+          className="font-mono pe-14"
+        />
+        <button
+          type="button"
+          onClick={() => setShowKey(!showKey)}
+          className="absolute end-2 top-1/2 -translate-y-1/2 rounded px-2 py-1 text-[11px] text-muted-foreground hover:bg-accent"
+        >
+          {showKey ? "hide" : "show"}
+        </button>
+      </div>
+      <p className="text-[11px] text-muted-foreground">
+        Encrypted with AES-256-GCM and stored locally.
+      </p>
+    </div>
+  );
+}
+
 function OllamaConfig({
   url,
   setUrl,
@@ -475,7 +544,7 @@ function ManualNote() {
     <div className="rounded-xl border border-border bg-card/60 p-4 text-[12px] leading-relaxed text-muted-foreground">
       Spent will leave transactions <span className="text-foreground">uncategorized</span>;
       you can assign categories from the transactions table any time. Switch to
-      Claude or Ollama later in{" "}
+      Claude, Gemini, or Ollama later in{" "}
       <span className="font-bold text-foreground">Settings → AI</span>.
     </div>
   );
