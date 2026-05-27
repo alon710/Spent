@@ -1,6 +1,6 @@
 import "server-only";
 
-import Anthropic from "@anthropic-ai/sdk";
+import { GoogleGenAI } from "@google/genai";
 import type {
   AIProvider,
   CategoryForCategorization,
@@ -11,11 +11,11 @@ import type {
 import { buildCategorizationPrompt, SYSTEM_PROMPT } from "../prompts";
 import { parseCategorizationResponse } from "../lib/parse-response";
 
-export class ClaudeProvider implements AIProvider {
-  private client: Anthropic;
+export class GeminiProvider implements AIProvider {
+  private client: GoogleGenAI;
 
-  constructor(apiKey: string) {
-    this.client = new Anthropic({ apiKey });
+  constructor(apiKey: string, private model: string) {
+    this.client = new GoogleGenAI({ apiKey });
   }
 
   async categorize(
@@ -31,18 +31,17 @@ export class ClaudeProvider implements AIProvider {
       options?.pastCorrections ?? []
     );
 
-    const response = await this.client.messages.create({
-      model: "claude-haiku-4-5-20251001",
-      max_tokens: 4096,
-      system: SYSTEM_PROMPT,
-      messages: [{ role: "user", content: prompt }],
+    const response = await this.client.models.generateContent({
+      model: this.model,
+      contents: prompt,
+      config: {
+        systemInstruction: SYSTEM_PROMPT,
+        responseMimeType: "application/json",
+      },
     });
 
-    const text =
-      response.content[0].type === "text" ? response.content[0].text : "";
-
     return parseCategorizationResponse(
-      text,
+      response.text ?? "",
       categories.map((c) => c.name),
       allowProposals
     );
