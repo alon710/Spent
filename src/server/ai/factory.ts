@@ -40,12 +40,8 @@ export function createAIProvider(): AIProvider | null {
       authTag: Buffer.from(authTag, "hex"),
     });
 
-    const storedModel = getSetting("ai_gemini_model");
     const model =
-      storedModel &&
-      RECOMMENDED_GEMINI_MODELS.some((m) => m.name === storedModel)
-        ? storedModel
-        : RECOMMENDED_GEMINI_MODELS[0].name;
+      getSetting("ai_gemini_model") ?? RECOMMENDED_GEMINI_MODELS[0].name;
     return new GeminiProvider(apiKey, model);
   }
 

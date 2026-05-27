@@ -380,7 +380,6 @@
       "geminiKeyCardTitle": "מפתח Gemini API",
       "geminiKeyCardDescription": "הדביקו את המפתח שלכם מ־aistudio.google.com/apikey. הוא מוצפן במנוחה עם AES-256-GCM.",
       "apiKeyLabel": "מפתח API",
-      "leaveBlankHint": "השאירו ריק כדי לשמור על המפתח הקיים.",
       "apiKeyRequiredHint": "יש להזין מפתח לפני שמירת הספק הזה.",
       "ollamaCardTitle": "הגדרות Ollama",
       "ollamaCardDescription": "Spent מפעיל את Ollama אוטומטית אם הוא מותקן ולא רץ.",

@@ -81,26 +81,22 @@ export function friendlyAIError(
   provider?: string
 ): string {
   const msg = err instanceof Error ? err.message : String(err);
-  if (
-    provider === "gemini" &&
-    /ECONNREFUSED|fetch failed|network|ENOTFOUND|ETIMEDOUT/i.test(msg)
-  ) {
-    return "Gemini is not reachable. Check your internet connection and Gemini API key in settings.";
+  const isNetwork = /ECONNREFUSED|fetch failed|ENOTFOUND|ETIMEDOUT/i.test(msg);
+  const isAuth = /api[_-]?key|401|403/i.test(msg);
+
+  if (provider === "ollama") {
+    if (/model.*not found|pull.*model|404/i.test(msg)) {
+      return `Ollama model "${modelName}" is not installed. Run: ollama pull ${modelName}`;
+    }
+    if (isNetwork) {
+      return "Ollama is not reachable. Make sure it's installed and that no firewall is blocking port 11434.";
+    }
   }
-  if (/model.*not found|pull.*model|404/i.test(msg)) {
-    return `Ollama model "${modelName}" is not installed. Run: ollama pull ${modelName}`;
+  if (provider === "claude" && (isNetwork || isAuth)) {
+    return "Claude API request failed. Check your API key and connection in settings.";
   }
-  if (/ECONNREFUSED|fetch failed/i.test(msg)) {
-    return "Ollama is not reachable. Make sure it's installed and that no firewall is blocking port 11434.";
-  }
-  if (/Anthropic/i.test(msg) || /Claude/i.test(msg)) {
-    return "Claude API request was rejected. Check your API key in settings.";
-  }
-  if (/Gemini|Google.*GenAI|GoogleGenAI|generativelanguage/i.test(msg)) {
-    return "Gemini API request was rejected. Check your API key in settings.";
-  }
-  if (/api[_-]?key|401|403/i.test(msg)) {
-    return "AI provider rejected the request. Check your API key in settings.";
+  if (provider === "gemini" && (isNetwork || isAuth)) {
+    return "Gemini API request failed. Check your API key and connection in settings.";
   }
   return `AI categorization failed: ${msg}`;
 }

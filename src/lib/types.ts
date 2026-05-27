@@ -281,8 +281,6 @@ export interface SetupStatus {
 export interface AppSettings {
   monthsToSync: number;
   aiProvider: "claude" | "gemini" | "ollama" | "none";
-  hasClaudeApiKey: boolean;
-  hasGeminiApiKey: boolean;
   geminiModel: string;
   ollamaUrl: string;
   ollamaModel: string;

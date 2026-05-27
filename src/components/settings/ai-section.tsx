@@ -46,9 +46,7 @@ function errorMessage(err: unknown): string {
   try {
     const parsed = JSON.parse(err.message) as { error?: unknown };
     if (typeof parsed.error === "string") return parsed.error;
-  } catch {
-    // The shared fetch helper also throws plain text for non-JSON errors.
-  }
+  } catch {}
   return err.message;
 }
 
@@ -88,8 +86,9 @@ function AIForm({ settings }: { settings: AppSettings }) {
   const [geminiModel, setGeminiModel] = useState(settings.geminiModel);
   const [ollamaUrl, setOllamaUrl] = useState(settings.ollamaUrl);
   const [ollamaModel, setOllamaModel] = useState(settings.ollamaModel);
-  const missingClaudeKey = provider === "claude" && !apiKey && !settings.hasClaudeApiKey;
-  const missingGeminiKey = provider === "gemini" && !geminiKey && !settings.hasGeminiApiKey;
+  const missingKey =
+    (provider === "claude" && !apiKey) ||
+    (provider === "gemini" && !geminiKey);
 
   const mutation = useMutation({
     mutationFn: () =>
@@ -176,7 +175,7 @@ function AIForm({ settings }: { settings: AppSettings }) {
               placeholder="sk-ant-..."
             />
             <p className="text-xs text-muted-foreground">
-              {settings.hasClaudeApiKey ? t("leaveBlankHint") : t("apiKeyRequiredHint")}
+              {t("apiKeyRequiredHint")}
             </p>
           </div>
         </SettingCard>
@@ -198,7 +197,7 @@ function AIForm({ settings }: { settings: AppSettings }) {
                 placeholder="AIza..."
               />
               <p className="text-xs text-muted-foreground">
-                {settings.hasGeminiApiKey ? t("leaveBlankHint") : t("apiKeyRequiredHint")}
+                {t("apiKeyRequiredHint")}
               </p>
             </div>
             <div className="space-y-2">
@@ -286,7 +285,7 @@ function AIForm({ settings }: { settings: AppSettings }) {
       <div className="flex justify-end">
         <Button
           onClick={() => mutation.mutate()}
-          disabled={mutation.isPending || missingClaudeKey || missingGeminiKey}
+          disabled={mutation.isPending || missingKey}
         >
           {mutation.isPending ? tCommon("saving") : t("saveAiSettings")}
         </Button>
