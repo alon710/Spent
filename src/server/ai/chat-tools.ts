@@ -10,13 +10,36 @@ import {
   getCategorySpendInRange,
 } from "../db/queries/transactions";
 import { getAllCategories } from "../db/queries/categories";
+import { updateChatSessionTitle } from "../db/queries/chat-sessions";
 
 const dateString = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, "Use ISO date format YYYY-MM-DD");
 
-export function buildChatTools(workspaceId: number) {
+export function buildChatTools(workspaceId: number, sessionId?: string) {
   return {
+    setChatTitle: tool({
+      description:
+        "Set a short, descriptive title for the current chat session. Use once after the first user message, and keep it under 6 words.",
+      inputSchema: z.object({
+        title: z
+          .string()
+          .min(1)
+          .max(80)
+          .describe("Short chat title without quotes or punctuation."),
+      }),
+      execute: async ({ title }) => {
+        if (!sessionId) return { ok: false };
+        const session = updateChatSessionTitle(
+          workspaceId,
+          sessionId,
+          title,
+          "auto"
+        );
+        return { ok: session != null, title: session?.title ?? title };
+      },
+    }),
+
     listCategories: tool({
       description:
         "List all spending and income categories defined in the user's workspace. Use this before filtering transactions by category to look up the correct category id and name.",
