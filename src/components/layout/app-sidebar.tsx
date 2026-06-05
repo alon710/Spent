@@ -179,7 +179,7 @@ export function AppSidebar() {
           <SidebarMenuItem>
             <SidebarMenuButton
               render={
-                <a href="https://github.com/Shaya16/Spent" target="_blank" rel="noreferrer">
+                <a href="https://github.com/alon710/Spent" target="_blank" rel="noreferrer">
                   <Star />
                   <span>{t("starOnGitHub")}</span>
                 </a>
