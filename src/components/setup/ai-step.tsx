@@ -110,10 +110,13 @@ export function AIStep({ onComplete, onBack }: AIStepProps) {
 
   const modelInstalled = installedModels.includes(ollamaModel);
 
+  const trimmedApiKey = apiKey.trim();
+  const trimmedGeminiKey = geminiKey.trim();
+
   const canContinue =
     choice === "none" ||
-    (choice === "claude" && /^sk-ant-/.test(apiKey) && apiKey.length > 25) ||
-    (choice === "gemini" && /^AIza/.test(geminiKey) && geminiKey.length > 30) ||
+    (choice === "claude" && /^sk-ant-/.test(trimmedApiKey) && trimmedApiKey.length > 25) ||
+    (choice === "gemini" && trimmedGeminiKey.length > 30) ||
     (choice === "ollama" && modelInstalled);
 
   const handlePull = () => {
@@ -150,8 +153,8 @@ export function AIStep({ onComplete, onBack }: AIStepProps) {
     try {
       await saveAIConfig({
         provider: choice,
-        claudeApiKey: choice === "claude" ? apiKey : undefined,
-        geminiApiKey: choice === "gemini" ? geminiKey : undefined,
+        claudeApiKey: choice === "claude" ? trimmedApiKey : undefined,
+        geminiApiKey: choice === "gemini" ? trimmedGeminiKey : undefined,
         geminiModel: choice === "gemini" ? geminiModel : undefined,
         ollamaUrl: choice === "ollama" ? ollamaUrl : undefined,
         ollamaModel: choice === "ollama" ? ollamaModel : undefined,
