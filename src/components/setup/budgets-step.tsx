@@ -1,59 +1,16 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import {
-  ArrowLeftRight,
-  Baby,
-  Banknote,
-  Briefcase,
-  CircleDot,
-  Coffee,
-  Gift,
-  GraduationCap,
-  HeartPulse,
-  Home,
-  type LucideIcon,
-  PawPrint,
-  Plane,
-  Receipt,
-  RefreshCw,
-  Shield,
-  ShoppingBag,
-  ShoppingBasket,
-  Sparkles,
-  Ticket,
-  TramFront,
-  UtensilsCrossed,
-} from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
+import { getCategoryIcon } from "@/components/category-icon";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import type { Locale } from "@/i18n/routing";
 import { getCategories, setBudgetModesBulk, updateBudget } from "@/lib/api";
+import { shade, tint } from "@/lib/colors";
+import { formatCurrency } from "@/lib/formatters";
 import type { Category } from "@/lib/types";
-
-const ICON_MAP: Record<string, LucideIcon> = {
-  "shopping-basket": ShoppingBasket,
-  "utensils-crossed": UtensilsCrossed,
-  "tram-front": TramFront,
-  "shopping-bag": ShoppingBag,
-  ticket: Ticket,
-  "heart-pulse": HeartPulse,
-  "graduation-cap": GraduationCap,
-  receipt: Receipt,
-  "refresh-cw": RefreshCw,
-  plane: Plane,
-  banknote: Banknote,
-  "arrow-left-right": ArrowLeftRight,
-  shield: Shield,
-  home: Home,
-  sparkles: Sparkles,
-  "circle-dot": CircleDot,
-  coffee: Coffee,
-  "paw-print": PawPrint,
-  gift: Gift,
-  baby: Baby,
-  briefcase: Briefcase,
-};
 
 interface BudgetsStepProps {
   onComplete: () => void;
@@ -61,6 +18,9 @@ interface BudgetsStepProps {
 }
 
 export function BudgetsStep({ onComplete, onBack }: BudgetsStepProps) {
+  const t = useTranslations("setup");
+  const tc = useTranslations("common");
+  const locale = useLocale() as Locale;
   const { data: categories = [], isLoading } = useQuery({
     queryKey: ["categories", "expense"],
     queryFn: () => getCategories("expense"),
@@ -111,14 +71,10 @@ export function BudgetsStep({ onComplete, onBack }: BudgetsStepProps) {
     <div className="mx-auto w-full max-w-[520px] space-y-6">
       <header className="space-y-2">
         <div className="text-[9px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
-          Step 4 of 5
+          {t("budgetsStep")}
         </div>
-        <h1 className="font-serif text-4xl leading-[1.08] tracking-tight">
-          Set a budget for each category
-        </h1>
-        <p className="text-sm leading-relaxed text-muted-foreground">
-          Type an amount for the ones you want to cap. Leave blank to just track.
-        </p>
+        <h1 className="font-serif text-4xl leading-[1.08] tracking-tight">{t("budgetsTitle")}</h1>
+        <p className="text-sm leading-relaxed text-muted-foreground">{t("budgetsDescription")}</p>
       </header>
 
       {isLoading ? (
@@ -141,22 +97,20 @@ export function BudgetsStep({ onComplete, onBack }: BudgetsStepProps) {
       )}
 
       <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-        <span>
-          {budgeted.length} of {categories.length} budgeted
-        </span>
+        <span>{t("budgetsCount", { budgeted: budgeted.length, total: categories.length })}</span>
         {total > 0 && (
           <span className="font-bold tabular-nums text-foreground">
-            ₪ {total.toLocaleString()} / month
+            {t("budgetsTotalPerMonth", { amount: formatCurrency(total, "ILS", locale) })}
           </span>
         )}
       </div>
 
       <footer className="flex items-center justify-between pt-2">
         <Button variant="outline" onClick={onBack} disabled={saving}>
-          ← Back
+          ← {tc("back")}
         </Button>
         <Button onClick={() => finish(true)} disabled={saving || isLoading}>
-          {saving ? "Saving..." : "Continue →"}
+          {saving ? tc("saving") : `${tc("continue")} →`}
         </Button>
       </footer>
 
@@ -167,7 +121,7 @@ export function BudgetsStep({ onComplete, onBack }: BudgetsStepProps) {
           disabled={saving}
           className="text-[11px] text-muted-foreground underline decoration-muted-foreground/30 underline-offset-4 transition-colors hover:text-foreground"
         >
-          Skip, auto-set from spending after first sync
+          {t("budgetsSkip")}
         </button>
       </div>
     </div>
@@ -183,7 +137,7 @@ function CategoryCell({
   value: string;
   onChange: (v: string) => void;
 }) {
-  const Icon = ICON_MAP[category.icon ?? "circle-dot"] ?? CircleDot;
+  const Icon = getCategoryIcon(category.icon);
   const accent = shade(category.color);
   const filled = value.trim() !== "" && Number(value.trim()) > 0;
 
@@ -231,24 +185,4 @@ function CategoryCell({
       </div>
     </label>
   );
-}
-
-function tint(hex: string, opacity: number): string {
-  const { r, g, b } = parseHex(hex);
-  return `rgba(${r}, ${g}, ${b}, ${opacity})`;
-}
-
-function shade(hex: string): string {
-  const { r, g, b } = parseHex(hex);
-  const factor = 0.78;
-  return `rgb(${Math.round(r * factor)}, ${Math.round(g * factor)}, ${Math.round(b * factor)})`;
-}
-
-function parseHex(hex: string): { r: number; g: number; b: number } {
-  const clean = hex.replace("#", "");
-  return {
-    r: parseInt(clean.slice(0, 2), 16),
-    g: parseInt(clean.slice(2, 4), 16),
-    b: parseInt(clean.slice(4, 6), 16),
-  };
 }

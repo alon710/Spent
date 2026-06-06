@@ -69,13 +69,17 @@ export async function POST(request: Request) {
       if (c.parentId === null) parentNameById.set(c.id, c.name);
     }
     const parentIdSet = new Set(parentNameById.keys());
-    const categoryInput = categories
-      .filter((c) => !parentIdSet.has(c.id))
-      .map((c) => ({
-        name: c.name,
-        description: c.description,
-        parentName: c.parentId != null ? (parentNameById.get(c.parentId) ?? null) : null,
-      }));
+    const categoryInput = categories.flatMap((c) =>
+      parentIdSet.has(c.id)
+        ? []
+        : [
+            {
+              name: c.name,
+              description: c.description,
+              parentName: c.parentId != null ? (parentNameById.get(c.parentId) ?? null) : null,
+            },
+          ],
+    );
     const pastCorrections = getRecentCorrections(workspaceId, kind);
 
     for (let i = 0; i < ids.length; i += BATCH_SIZE) {

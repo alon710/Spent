@@ -17,7 +17,7 @@ import { fileURLToPath } from "node:url";
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(HERE, "..");
 const SERVICE_INSTALL = path.join(HERE, "service", "install.mjs");
-const FRIENDLY_URL = "http://spent.localhost:41234";
+const FRIENDLY_URL = "http://spent.localhost:2412";
 const BUN = process.platform === "win32" ? "bun.exe" : "bun";
 
 function step(msg) {
@@ -198,8 +198,8 @@ function preflight() {
       console.log("");
       console.log("Note: this shell is not Administrator.");
       console.log("Setup will continue, but the hosts entry for spent.localhost cannot be added.");
-      console.log("  - http://127.0.0.1:41234 will work normally.");
-      console.log("  - http://spent.localhost:41234 may not resolve on older Windows builds.");
+      console.log("  - http://127.0.0.1:2412 will work normally.");
+      console.log("  - http://spent.localhost:2412 may not resolve on older Windows builds.");
       console.log("To guarantee the friendly hostname, relaunch from an elevated");
       console.log("PowerShell (Win+X -> 'Terminal (Admin)') and run `bun run service:install`.");
       console.log("");
@@ -222,7 +222,7 @@ function dashboardUrl() {
   // On Windows, fall back to loopback if the hosts entry wasn't written
   // (e.g. user didn't run setup from an elevated shell).
   if (process.platform !== "win32") return FRIENDLY_URL;
-  return windowsHostsHasSpentLocalhost() ? FRIENDLY_URL : "http://127.0.0.1:41234";
+  return windowsHostsHasSpentLocalhost() ? FRIENDLY_URL : "http://127.0.0.1:2412";
 }
 
 function buildNextApp() {
@@ -239,7 +239,7 @@ function installService() {
 // not when `next start` is actually listening. Poll /api/health so the
 // browser-open at the end of setup doesn't beat the server to the punch.
 async function waitForServer(maxMs = 60000) {
-  const url = "http://127.0.0.1:41234/api/health";
+  const url = "http://127.0.0.1:2412/api/health";
   const start = Date.now();
   let lastErr = null;
   while (Date.now() - start < maxMs) {

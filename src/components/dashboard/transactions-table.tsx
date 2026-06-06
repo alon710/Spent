@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useState } from "react";
+import { toast } from "sonner";
 import { ProviderBadge } from "@/components/setup/provider-badge";
 import { SortableTableHead } from "@/components/transactions/sortable-table-head";
 import {
@@ -105,6 +106,7 @@ export function TransactionsTable({
   isFetching = false,
 }: TransactionsTableProps) {
   const t = useTranslations("transactions");
+  const tc = useTranslations("common");
   const tCat = useTranslations("categoriesSeeded");
   const tBanks = useTranslations("banks");
   const locale = useLocale() as Locale;
@@ -134,6 +136,8 @@ export function TransactionsTable({
       queryClient.invalidateQueries({ queryKey: ["transactions"] });
       queryClient.invalidateQueries({ queryKey: ["summary"] });
       queryClient.invalidateQueries({ queryKey: ["transactions-summary"] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : tc("saveFailed"));
     } finally {
       setUpdatingId(null);
     }
@@ -147,6 +151,8 @@ export function TransactionsTable({
       queryClient.invalidateQueries({ queryKey: ["summary"] });
       queryClient.invalidateQueries({ queryKey: ["transactions-summary"] });
       queryClient.invalidateQueries({ queryKey: ["categories"] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : tc("saveFailed"));
     } finally {
       setUpdatingId(null);
     }
@@ -159,6 +165,8 @@ export function TransactionsTable({
       queryClient.invalidateQueries({ queryKey: ["transactions"] });
       queryClient.invalidateQueries({ queryKey: ["summary"] });
       queryClient.invalidateQueries({ queryKey: ["transactions-summary"] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : tc("saveFailed"));
     } finally {
       setUpdatingId(null);
     }
@@ -264,11 +272,11 @@ export function TransactionsTable({
   };
 
   return (
-    <Card className="rounded-2xl border border-border bg-card shadow-none">
+    <Card>
       <CardHeader>
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
           <CardTitle className="font-serif text-2xl font-normal">{t("pageTitle")}</CardTitle>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Input
               placeholder={t("search")}
               value={search}
@@ -276,7 +284,7 @@ export function TransactionsTable({
                 onSearchChange(e.target.value);
                 onPageChange(0);
               }}
-              className="h-8 w-[200px]"
+              className="h-8 w-full sm:w-[200px]"
             />
             {showAccountFilter ? (
               <TransactionMultiFilter
@@ -547,7 +555,7 @@ export function TransactionsTable({
                         className="text-end font-medium tabular-nums"
                         style={{ color: directionColor }}
                       >
-                        {formatCurrency(txn.chargedAmount, "ILS", locale)}
+                        {formatCurrency(txn.chargedAmount, txn.chargedCurrency ?? "ILS", locale)}
                       </TableCell>
                       <TableCell className="text-end">
                         <DropdownMenu>

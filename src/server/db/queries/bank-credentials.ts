@@ -233,6 +233,14 @@ export function hasBankCredentials(workspaceId: number): boolean {
   return row.count > 0;
 }
 
+/** True when any workspace has at least one connected bank. Gates first-run setup. */
+export function anyWorkspaceHasBankCredentials(): boolean {
+  const row = getDb().prepare("SELECT COUNT(*) as count FROM bank_credentials").get() as {
+    count: number;
+  };
+  return row.count > 0;
+}
+
 export function deleteBankCredentials(workspaceId: number, credentialId: number): void {
   getDb()
     .prepare("DELETE FROM bank_credentials WHERE workspace_id = ? AND id = ?")

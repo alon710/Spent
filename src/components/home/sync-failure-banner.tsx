@@ -1,9 +1,9 @@
 "use client";
 
 import { AlertTriangle } from "lucide-react";
-import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
+import { Link } from "@/i18n/navigation";
 import { translateProviderName } from "@/lib/i18n-data";
 import type { HomeBankHealthItem } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -15,17 +15,17 @@ interface Props {
 
 const TWO_FA_RE = /2fa|otp|verification|change[_ ]?password|invalid[_ ]?password/i;
 
+const ISO_DAY_FORMAT = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "Asia/Jerusalem",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
 function isToday(iso: string): boolean {
   const now = new Date();
   const synced = new Date(`${iso}Z`);
-  const fmt = (d: Date) =>
-    new Intl.DateTimeFormat("en-CA", {
-      timeZone: "Asia/Jerusalem",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).format(d);
-  return fmt(now) === fmt(synced);
+  return ISO_DAY_FORMAT.format(now) === ISO_DAY_FORMAT.format(synced);
 }
 
 function truncate(s: string, max = 120): string {

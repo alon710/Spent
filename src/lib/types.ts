@@ -144,7 +144,6 @@ export interface DashboardSummary {
   paydayDay: number;
   todayLabel: string;
   monthLabel: string;
-  pacePhrase: string;
   typicalMonthly: number | null;
 }
 
@@ -168,7 +167,6 @@ export interface HomeThisMonth {
   spent: number;
   budget: number;
   deltaVsLastMonth: number | null;
-  pacePhrase: string;
   daysUntilPayday: number;
   timeElapsedPercent: number;
   monthLabel: string;
@@ -295,7 +293,7 @@ export interface AppSettings {
   monthlyTarget: number | null;
   autoSyncEnabled: boolean;
   autoSyncTime: string;
-  language: "en" | "he";
+  treatAtmAsTransfers: boolean;
 }
 
 export type BankProvider =

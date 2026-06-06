@@ -5,10 +5,11 @@ import { useLocale, useTranslations } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
 import { AINotConnectedBanner } from "@/components/ai-not-connected-banner";
 import { PageHeader } from "@/components/layout/app-shell";
+import { QueryError } from "@/components/ui/query-error";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { Locale } from "@/i18n/routing";
 import { getSummary } from "@/lib/api";
-import { addMonths, formatMonthLabel, getMonthRange } from "@/lib/formatters";
+import { addMonths, formatMonthLabel, getMonthRange, isCurrentMonth } from "@/lib/formatters";
 import type { CategoryViewMode } from "@/lib/types";
 import { CategorizeButton } from "./categorize-button";
 import { CategoryGrid } from "./category-grid";
@@ -30,6 +31,7 @@ function readViewMode(): CategoryViewMode {
 
 export function Dashboard() {
   const t = useTranslations("dashboard");
+  const tc = useTranslations("common");
   const locale = useLocale() as Locale;
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<CategoryViewMode>("collapsed");
@@ -75,6 +77,9 @@ export function Dashboard() {
               label={monthLabel}
               onPrev={() => setSelectedDate((d) => addMonths(d, -1))}
               onNext={() => setSelectedDate((d) => addMonths(d, 1))}
+              prevLabel={tc("previousMonth")}
+              nextLabel={tc("nextMonth")}
+              nextDisabled={isCurrentMonth(selectedDate)}
             />
             <CategorizeButton onApplied={handleSyncComplete} />
             <SyncButton onComplete={handleSyncComplete} />
@@ -84,28 +89,36 @@ export function Dashboard() {
 
       <div className="space-y-6 p-4 md:p-6 lg:p-8">
         <AINotConnectedBanner />
-        <HeroCard data={summary} loading={summaryQuery.isLoading} monthLabel={monthLabel} />
+        {summaryQuery.isError && !summary ? (
+          <QueryError onRetry={() => summaryQuery.refetch()} />
+        ) : (
+          <>
+            <HeroCard data={summary} loading={summaryQuery.isLoading} monthLabel={monthLabel} />
 
-        <div className="flex items-center justify-end">
-          <Tabs
-            value={viewMode}
-            onValueChange={(v) => handleViewModeChange(v === "expanded" ? "expanded" : "collapsed")}
-          >
-            <TabsList>
-              <TabsTrigger value="collapsed">{t("viewModeGrouped")}</TabsTrigger>
-              <TabsTrigger value="expanded">{t("viewModeAll")}</TabsTrigger>
-            </TabsList>
-          </Tabs>
-        </div>
+            <div className="flex items-center justify-end">
+              <Tabs
+                value={viewMode}
+                onValueChange={(v) =>
+                  handleViewModeChange(v === "expanded" ? "expanded" : "collapsed")
+                }
+              >
+                <TabsList>
+                  <TabsTrigger value="collapsed">{t("viewModeGrouped")}</TabsTrigger>
+                  <TabsTrigger value="expanded">{t("viewModeAll")}</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
 
-        <CategoryGrid
-          categories={summary?.categoriesWithData ?? []}
-          loading={summaryQuery.isLoading}
-          periodTotal={summary?.periodTotal ?? 0}
-          from={from}
-          to={to}
-          viewMode={viewMode}
-        />
+            <CategoryGrid
+              categories={summary?.categoriesWithData ?? []}
+              loading={summaryQuery.isLoading}
+              periodTotal={summary?.periodTotal ?? 0}
+              from={from}
+              to={to}
+              viewMode={viewMode}
+            />
+          </>
+        )}
       </div>
     </>
   );

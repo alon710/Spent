@@ -18,14 +18,27 @@ import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { toast } from "sonner";
 import { PageHeader } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
+import { CardLabel } from "@/components/ui/card-label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { deleteChatSession, getChatSession, listChatSessions, renameChatSession } from "@/lib/api";
 import type { ChatSession } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -58,9 +71,14 @@ function extractGeneratedTitle(messages: UIMessage[]): string | null {
 
 function ChatWorkspace({ workspaceId }: { workspaceId: number | null }) {
   const t = useTranslations("chat");
+  const tc = useTranslations("common");
   const queryClient = useQueryClient();
   const [activeSessionId, setActiveSessionId] = useState(createChatId);
   const [initialMessages, setInitialMessages] = useState<UIMessage[]>([]);
+  const [renameTarget, setRenameTarget] = useState<ChatSession | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<ChatSession | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   const sessionsQuery = useQuery({
     queryKey: ["chatSessions", workspaceId],
@@ -104,6 +122,7 @@ function ChatWorkspace({ workspaceId }: { workspaceId: number | null }) {
 
   const [input, setInput] = useState("");
   const scrollerRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const lastLiveTitleRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -111,6 +130,14 @@ function ChatWorkspace({ workspaceId }: { workspaceId: number | null }) {
     if (!el) return;
     el.scrollTop = el.scrollHeight;
   }, [messages, status]);
+
+  // Auto-grow the composer with its content (capped by max-h on the element).
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 192)}px`;
+  }, [input]);
 
   useEffect(() => {
     if (workspaceId == null || messages.length === 0) return;
@@ -172,25 +199,40 @@ function ChatWorkspace({ workspaceId }: { workspaceId: number | null }) {
   }
 
   async function selectSession(id: string) {
-    const data = await queryClient.fetchQuery({
-      queryKey: ["chatSession", workspaceId, id],
-      queryFn: () => getChatSession(id),
-    });
-    setInitialMessages(data.messages);
-    setActiveSessionId(id);
-    setMessages(data.messages);
-    setInput("");
+    try {
+      const data = await queryClient.fetchQuery({
+        queryKey: ["chatSession", workspaceId, id],
+        queryFn: () => getChatSession(id),
+      });
+      setInitialMessages(data.messages);
+      setActiveSessionId(id);
+      setMessages(data.messages);
+      setInput("");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : tc("loadFailed"));
+    }
   }
 
   function renameSession(session: ChatSession) {
-    const title = window.prompt(t("renamePrompt"), session.title);
-    if (title == null || !title.trim()) return;
-    renameMutation.mutate({ id: session.id, title });
+    setRenameTarget(session);
+    setRenameValue(session.title);
   }
 
   function removeSession(session: ChatSession) {
-    if (!window.confirm(t("deleteConfirm", { title: session.title }))) return;
-    deleteMutation.mutate(session.id);
+    setDeleteTarget(session);
+  }
+
+  function confirmRename() {
+    const title = renameValue.trim();
+    if (!renameTarget || !title) return;
+    renameMutation.mutate({ id: renameTarget.id, title });
+    setRenameTarget(null);
+  }
+
+  function confirmDelete() {
+    if (!deleteTarget) return;
+    deleteMutation.mutate(deleteTarget.id);
+    setDeleteTarget(null);
   }
 
   return (
@@ -199,70 +241,76 @@ function ChatWorkspace({ workspaceId }: { workspaceId: number | null }) {
         title={t("title")}
         meta={t("meta")}
         actions={
-          messages.length > 0 ? (
+          <>
+            <ChatHistoryMenu
+              sessions={sessionsQuery.data ?? []}
+              activeSessionId={activeSessionId}
+              loading={sessionsQuery.isLoading}
+              open={historyOpen}
+              onOpenChange={setHistoryOpen}
+              onSelect={(id) => {
+                setHistoryOpen(false);
+                void selectSession(id);
+              }}
+              onRename={renameSession}
+              onDelete={removeSession}
+            />
             <Button variant="ghost" size="sm" onClick={startNewChat} disabled={isBusy}>
               <Plus className="h-3.5 w-3.5" />
               {t("newChat")}
             </Button>
-          ) : null
+          </>
         }
       />
 
-      <div className="flex h-[calc(100dvh-3.5rem)] min-h-0 flex-col md:h-[calc(100dvh-4rem)] md:flex-row">
-        <ChatHistory
-          sessions={sessionsQuery.data ?? []}
-          activeSessionId={activeSessionId}
-          loading={sessionsQuery.isLoading}
-          busy={isBusy}
-          onNew={startNewChat}
-          onSelect={(id) => void selectSession(id)}
-          onRename={renameSession}
-          onDelete={removeSession}
-        />
+      <div className="flex h-[calc(100dvh-3.5rem)] min-h-0 flex-col md:h-[calc(100dvh-4rem)]">
+        <div ref={scrollerRef} className="flex-1 overflow-y-auto px-4 pb-4 pt-6 md:px-6 lg:px-8">
+          <div className="mx-auto flex max-w-3xl flex-col gap-6">
+            {messages.length === 0 && (
+              <EmptyState
+                suggestions={[t("suggest1"), t("suggest2"), t("suggest3"), t("suggest4")]}
+                onPick={(s) => {
+                  clearError();
+                  setInput("");
+                  sendMessage({ text: s });
+                }}
+                busy={isBusy}
+              />
+            )}
 
-        <div className="flex min-w-0 flex-1 flex-col">
-          <div ref={scrollerRef} className="flex-1 overflow-y-auto px-4 pb-4 pt-6 md:px-6 lg:px-8">
-            <div className="mx-auto flex max-w-3xl flex-col gap-6">
-              {messages.length === 0 && (
-                <EmptyState
-                  suggestions={[t("suggest1"), t("suggest2"), t("suggest3"), t("suggest4")]}
-                  onPick={(s) => {
-                    clearError();
-                    setInput("");
-                    sendMessage({ text: s });
-                  }}
-                  busy={isBusy}
-                />
-              )}
+            {messages.map((message) => (
+              <MessageBubble key={message.id} message={message} />
+            ))}
 
-              {messages.map((message) => (
-                <MessageBubble key={message.id} message={message} />
-              ))}
+            {status === "submitted" && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                {t("thinking")}
+              </div>
+            )}
 
-              {status === "submitted" && (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  {t("thinking")}
-                </div>
-              )}
-
-              {error && (
-                <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive-foreground">
-                  {t("error")}
-                </div>
-              )}
-            </div>
+            {error && (
+              <div
+                role="alert"
+                className="rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+              >
+                {t("error")}
+              </div>
+            )}
           </div>
+        </div>
 
-          <div className="border-t border-border/40 bg-background/80 px-4 py-3 backdrop-blur md:px-6 lg:px-8">
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                submit();
-              }}
-              className="mx-auto flex max-w-3xl items-end gap-2"
-            >
+        <div className="border-t border-border bg-background/80 px-4 py-3 backdrop-blur md:px-6 lg:px-8">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              submit();
+            }}
+            className="mx-auto max-w-3xl"
+          >
+            <div className="flex items-end gap-2 rounded-2xl border border-input bg-card p-2 shadow-sm transition-[color,box-shadow] focus-within:ring-2 focus-within:ring-ring">
               <textarea
+                ref={textareaRef}
                 value={input}
                 onChange={(e) => {
                   clearError();
@@ -275,38 +323,110 @@ function ChatWorkspace({ workspaceId }: { workspaceId: number | null }) {
                   }
                 }}
                 placeholder={t("composerPlaceholder")}
+                aria-label={t("composerPlaceholder")}
                 rows={1}
-                className="max-h-48 min-h-[44px] flex-1 resize-none rounded-2xl border border-border/60 bg-card px-4 py-3 text-sm shadow-sm outline-none ring-foreground/10 focus:ring-2"
+                className="max-h-48 min-h-9 flex-1 resize-none bg-transparent px-2 py-1.5 text-sm leading-relaxed outline-none placeholder:text-muted-foreground"
               />
               {isBusy ? (
                 <Button
                   type="button"
                   size="icon"
                   variant="secondary"
+                  className="rounded-full"
                   onClick={() => stop()}
                   aria-label={t("stop")}
                 >
                   <Square className="h-4 w-4" />
                 </Button>
               ) : (
-                <Button type="submit" size="icon" disabled={!input.trim()} aria-label={t("send")}>
+                <Button
+                  type="submit"
+                  size="icon"
+                  className="rounded-full"
+                  disabled={!input.trim()}
+                  aria-label={t("send")}
+                >
                   <ArrowUp className="h-4 w-4" />
                 </Button>
               )}
-            </form>
-          </div>
+            </div>
+            <p className="mt-1.5 text-center text-[11px] text-muted-foreground">
+              {t("composerHint")}
+            </p>
+          </form>
         </div>
       </div>
+
+      <Dialog
+        open={renameTarget != null}
+        onOpenChange={(open) => {
+          if (!open) setRenameTarget(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("renamePrompt")}</DialogTitle>
+          </DialogHeader>
+          <form
+            className="space-y-1.5"
+            onSubmit={(e) => {
+              e.preventDefault();
+              confirmRename();
+            }}
+          >
+            <Label htmlFor="chat-rename">{t("renameLabel")}</Label>
+            {/* biome-ignore lint/a11y/noAutofocus: focus the field when the rename dialog opens */}
+            <Input
+              id="chat-rename"
+              value={renameValue}
+              onChange={(e) => setRenameValue(e.target.value)}
+              autoFocus
+            />
+          </form>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRenameTarget(null)}>
+              {tc("cancel")}
+            </Button>
+            <Button onClick={confirmRename} disabled={!renameValue.trim()}>
+              {tc("save")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={deleteTarget != null}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {deleteTarget ? t("deleteConfirm", { title: deleteTarget.title }) : ""}
+            </DialogTitle>
+            <DialogDescription>{t("deleteDescription")}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>
+              {tc("cancel")}
+            </Button>
+            <Button variant="destructive" onClick={confirmDelete}>
+              {tc("delete")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
 
-function ChatHistory({
+function ChatHistoryMenu({
   sessions,
   activeSessionId,
   loading,
-  busy,
-  onNew,
+  open,
+  onOpenChange,
   onSelect,
   onRename,
   onDelete,
@@ -314,88 +434,91 @@ function ChatHistory({
   sessions: ChatSession[];
   activeSessionId: string;
   loading: boolean;
-  busy: boolean;
-  onNew: () => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   onSelect: (id: string) => void;
   onRename: (session: ChatSession) => void;
   onDelete: (session: ChatSession) => void;
 }) {
   const t = useTranslations("chat");
   return (
-    <aside className="flex max-h-40 shrink-0 flex-col border-b border-border/40 bg-muted/20 md:max-h-none md:w-64 md:border-b-0 md:border-e">
-      <div className="flex h-12 shrink-0 items-center justify-between gap-2 px-3">
-        <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          {t("history")}
+    <Popover open={open} onOpenChange={onOpenChange}>
+      <PopoverTrigger
+        render={
+          <Button type="button" variant="ghost" size="sm">
+            <MessageSquare className="h-3.5 w-3.5" />
+            {t("history")}
+            {sessions.length > 0 && (
+              <span className="ms-0.5 rounded-full bg-muted px-1.5 text-[11px] font-medium tabular-nums text-muted-foreground">
+                {sessions.length}
+              </span>
+            )}
+          </Button>
+        }
+      />
+      <PopoverContent align="end" className="w-72 p-0">
+        <div className="border-b border-border px-3 py-2">
+          <CardLabel>{t("history")}</CardLabel>
         </div>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-xs"
-          onClick={onNew}
-          disabled={busy}
-          aria-label={t("newChat")}
-        >
-          <Plus className="h-3.5 w-3.5" />
-        </Button>
-      </div>
-      <div className="flex min-h-0 gap-1 overflow-x-auto px-2 pb-2 md:flex-1 md:flex-col md:overflow-y-auto md:overflow-x-hidden">
-        {loading ? (
-          <div className="px-2 py-2 text-xs text-muted-foreground">{t("historyLoading")}</div>
-        ) : sessions.length === 0 ? (
-          <div className="px-2 py-2 text-xs text-muted-foreground">{t("historyEmpty")}</div>
-        ) : (
-          sessions.map((session) => {
-            const active = session.id === activeSessionId;
-            return (
-              <div
-                key={session.id}
-                className={cn(
-                  "group flex min-w-52 items-center gap-1 rounded-md md:min-w-0",
-                  active && "bg-accent",
-                )}
-              >
-                <button
-                  type="button"
-                  className={cn(
-                    "min-w-0 flex-1 truncate rounded-md px-2 py-2 text-start text-sm hover:bg-accent",
-                    active && "font-medium",
-                  )}
-                  onClick={() => onSelect(session.id)}
-                  disabled={busy}
+        <div className="max-h-80 overflow-y-auto p-1">
+          {loading ? (
+            <div className="px-2 py-6 text-center text-xs text-muted-foreground">
+              {t("historyLoading")}
+            </div>
+          ) : sessions.length === 0 ? (
+            <div className="px-2 py-6 text-center text-xs text-muted-foreground">
+              {t("historyEmpty")}
+            </div>
+          ) : (
+            sessions.map((session) => {
+              const active = session.id === activeSessionId;
+              return (
+                <div
+                  key={session.id}
+                  className={cn("group flex items-center gap-1 rounded-md", active && "bg-accent")}
                 >
-                  {session.title}
-                </button>
-                <DropdownMenu>
-                  <DropdownMenuTrigger
-                    render={
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-xs"
-                        className="me-1 opacity-70 group-hover:opacity-100"
-                        aria-label={t("sessionActions")}
-                      />
-                    }
+                  <button
+                    type="button"
+                    className={cn(
+                      "min-w-0 flex-1 truncate rounded-md px-2 py-2 text-start text-sm hover:bg-accent",
+                      active && "font-medium",
+                    )}
+                    onClick={() => onSelect(session.id)}
                   >
-                    <MoreHorizontal className="h-3.5 w-3.5" />
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-36">
-                    <DropdownMenuItem onClick={() => onRename(session)}>
-                      <Pencil className="h-3.5 w-3.5" />
-                      {t("rename")}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem variant="destructive" onClick={() => onDelete(session)}>
-                      <Trash2 className="h-3.5 w-3.5" />
-                      {t("delete")}
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            );
-          })
-        )}
-      </div>
-    </aside>
+                    {session.title}
+                  </button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger
+                      render={
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-xs"
+                          className="me-1 opacity-70 group-hover:opacity-100"
+                          aria-label={t("sessionActions")}
+                        />
+                      }
+                    >
+                      <MoreHorizontal className="h-3.5 w-3.5" />
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-36">
+                      <DropdownMenuItem onClick={() => onRename(session)}>
+                        <Pencil className="h-3.5 w-3.5" />
+                        {t("rename")}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem variant="destructive" onClick={() => onDelete(session)}>
+                        <Trash2 className="h-3.5 w-3.5" />
+                        {t("delete")}
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -413,7 +536,7 @@ function MessageBubble({ message }: { message: UIMessage }) {
           "max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed",
           isUser
             ? "whitespace-pre-wrap bg-primary text-primary-foreground"
-            : "overflow-x-auto bg-card ring-1 ring-foreground/10",
+            : "overflow-x-auto border border-border bg-card",
         )}
       >
         {message.parts.map((part, i) => {
@@ -519,7 +642,7 @@ function EmptyState({
             type="button"
             disabled={busy}
             onClick={() => onPick(s)}
-            className="rounded-xl border border-border/60 bg-card px-4 py-3 text-start text-sm leading-snug ring-foreground/10 transition hover:bg-accent disabled:opacity-50"
+            className="rounded-xl border border-border bg-card px-4 py-3 text-start text-sm leading-snug transition-colors hover:bg-accent disabled:opacity-50"
           >
             {s}
           </button>

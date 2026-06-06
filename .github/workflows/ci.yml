@@ -13,6 +13,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Full history so React Doctor's --diff can find the merge-base.
+          fetch-depth: 0
 
       - uses: oven-sh/setup-bun@v2
         with:
@@ -23,5 +26,10 @@ jobs:
           PUPPETEER_SKIP_DOWNLOAD: "true"
         run: bun install --frozen-lockfile
 
-      - name: Strict checks (format / typecheck / i18n / knip / react-doctor / tests)
+      - name: Strict checks (format / typecheck / i18n / react-compiler / tests)
         run: bun run ci
+
+      # Gate only the files this PR changed, so the existing backlog does not
+      # block unrelated PRs while it is paid down incrementally.
+      - name: React Doctor (changed files)
+        run: npx -y react-doctor@latest --diff --verbose

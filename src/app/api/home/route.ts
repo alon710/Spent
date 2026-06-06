@@ -23,7 +23,7 @@ import {
 import { getWorkspaceSetting } from "@/server/db/queries/settings";
 import { getPeriodTotal, getTopMerchants } from "@/server/db/queries/transactions";
 import { toLocalISODate } from "@/server/lib/date-utils";
-import { daysInMonth, daysUntil, dayWithinMonth, nextPayday, pacePhrase } from "@/server/lib/pace";
+import { daysInMonth, daysUntil, dayWithinMonth, nextPayday } from "@/server/lib/pace";
 import { getWorkspaceIdFromRequest } from "@/server/lib/workspace-context";
 import { getNextRunAt } from "@/server/sync/scheduler";
 
@@ -91,13 +91,10 @@ export async function GET(request: Request) {
     );
     const deltaVsLastMonth = prevSpent > 0 ? ((spent - prevSpent) / prevSpent) * 100 : null;
 
-    const phrase = pacePhrase(spent, spent, budget, timeElapsedPercent, monthLabel);
-
     return {
       spent,
       budget,
       deltaVsLastMonth,
-      pacePhrase: phrase,
       daysUntilPayday,
       timeElapsedPercent,
       monthLabel,

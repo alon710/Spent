@@ -2,6 +2,7 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { Check, ChevronRight } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { Fragment, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,8 +38,8 @@ const TINTS = {
 
 interface ProviderMeta {
   id: AIChoice;
-  title: string;
-  tagline: string;
+  titleKey: string;
+  taglineKey: string;
   icon: string;
   recommended?: boolean;
 }
@@ -46,32 +47,51 @@ interface ProviderMeta {
 const PROVIDERS: ProviderMeta[] = [
   {
     id: "claude",
-    title: "Claude",
-    tagline: "Anthropic API, fast and accurate",
+    titleKey: "aiProviderClaudeTitle",
+    taglineKey: "aiProviderClaudeTagline",
     icon: "✦",
     recommended: true,
   },
   {
     id: "gemini",
-    title: "Gemini",
-    tagline: "Google AI Studio, generous free tier",
+    titleKey: "aiProviderGeminiTitle",
+    taglineKey: "aiProviderGeminiTagline",
     icon: "✧",
   },
   {
     id: "ollama",
-    title: "Ollama",
-    tagline: "Runs locally, free and private",
+    titleKey: "aiProviderOllamaTitle",
+    taglineKey: "aiProviderOllamaTagline",
     icon: "◐",
   },
   {
     id: "none",
-    title: "Manual",
-    tagline: "No AI, categorize transactions yourself",
+    titleKey: "aiProviderManualTitle",
+    taglineKey: "aiProviderManualTagline",
     icon: "↷",
   },
 ];
 
+function ollamaModelKey(name: string): string {
+  return name.replace(/[^a-zA-Z0-9]/g, "_");
+}
+
+function ollamaModelDescription(
+  name: string,
+  fallback: string,
+  tModels: ReturnType<typeof useTranslations<"ollamaModels">>,
+): string {
+  const key = ollamaModelKey(name);
+  try {
+    const translated = tModels(key);
+    return translated && translated !== key ? translated : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 export function AIStep({ onComplete, onBack }: AIStepProps) {
+  const t = useTranslations("setup");
   const [choice, setChoice] = useState<AIChoice>("claude");
   const [apiKey, setApiKey] = useState("");
   const [showKey, setShowKey] = useState(false);
@@ -141,7 +161,7 @@ export function AIStep({ onComplete, onBack }: AIStepProps) {
         setPullState(null);
         setInstalledModels((prev) => (prev.includes(ollamaModel) ? prev : [...prev, ollamaModel]));
       } else if (event.type === "error") {
-        setPullError(event.data.message ?? "Failed to download the model.");
+        setPullError(event.data.message ?? t("aiOllamaFailedDownload"));
         setPullState(null);
       }
     });
@@ -169,15 +189,10 @@ export function AIStep({ onComplete, onBack }: AIStepProps) {
     <div className="mx-auto w-full max-w-[520px] space-y-6">
       <header className="space-y-2">
         <div className="text-[9px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
-          Step 2 of 5
+          {t("aiStepLabel")}
         </div>
-        <h1 className="font-serif text-4xl leading-[1.08] tracking-tight">
-          How should we categorize?
-        </h1>
-        <p className="text-sm leading-relaxed text-muted-foreground">
-          Spent uses AI to group your transactions into categories. You can change this any time in
-          settings.
-        </p>
+        <h1 className="font-serif text-4xl leading-[1.08] tracking-tight">{t("aiTitle")}</h1>
+        <p className="text-sm leading-relaxed text-muted-foreground">{t("aiDescription")}</p>
       </header>
 
       <div className="flex flex-col gap-1.5">
@@ -247,10 +262,10 @@ export function AIStep({ onComplete, onBack }: AIStepProps) {
 
       <footer className="flex items-center justify-between pt-2">
         <Button variant="outline" onClick={onBack}>
-          ← Back
+          {t("aiBackButton")}
         </Button>
         <Button onClick={handleSave} disabled={!canContinue || saving}>
-          {saving ? "Saving..." : "Continue →"}
+          {saving ? t("aiSavingButton") : t("aiContinueButton")}
         </Button>
       </footer>
     </div>
@@ -266,6 +281,7 @@ function ProviderRow({
   selected: boolean;
   onClick: () => void;
 }) {
+  const t = useTranslations("setup");
   const tint = TINTS[provider.id];
   return (
     <button
@@ -286,17 +302,19 @@ function ProviderRow({
       </div>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
-          <span className="text-sm font-bold tracking-tight">{provider.title}</span>
+          <span className="text-sm font-bold tracking-tight">{t(provider.titleKey)}</span>
           {provider.recommended && (
             <span
               className="rounded-full px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-[0.06em] text-white"
               style={{ background: tint.mid }}
             >
-              Recommended
+              {t("aiRecommendedBadge")}
             </span>
           )}
         </div>
-        <div className="mt-0.5 truncate text-[11px] text-muted-foreground">{provider.tagline}</div>
+        <div className="mt-0.5 truncate text-[11px] text-muted-foreground">
+          {t(provider.taglineKey)}
+        </div>
       </div>
       {selected ? (
         <span
@@ -331,6 +349,7 @@ function ApiKeyConfig({
   getKeyUrl: string;
   children?: React.ReactNode;
 }) {
+  const t = useTranslations("setup");
   return (
     <div className="space-y-3 rounded-xl border border-border bg-card/60 p-4">
       <div className="space-y-2">
@@ -339,7 +358,7 @@ function ApiKeyConfig({
             htmlFor={id}
             className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground"
           >
-            API key
+            {t("aiClaudeKeyLabel")}
           </Label>
           <a
             href={getKeyUrl}
@@ -347,7 +366,7 @@ function ApiKeyConfig({
             rel="noreferrer"
             className="text-[11px] font-medium text-primary hover:underline"
           >
-            Get a key ↗
+            {t("aiClaudeGetKey")}
           </a>
         </div>
         <div className="relative">
@@ -364,12 +383,10 @@ function ApiKeyConfig({
             onClick={() => setShowKey(!showKey)}
             className="absolute end-2 top-1/2 -translate-y-1/2 rounded px-2 py-1 text-[11px] text-muted-foreground hover:bg-accent"
           >
-            {showKey ? "hide" : "show"}
+            {showKey ? t("aiClaudeHide") : t("aiClaudeShow")}
           </button>
         </div>
-        <p className="text-[11px] text-muted-foreground">
-          Encrypted with AES-256-GCM and stored locally.
-        </p>
+        <p className="text-[11px] text-muted-foreground">{t("aiClaudeEncryptedNote")}</p>
       </div>
       {children}
     </div>
@@ -377,10 +394,11 @@ function ApiKeyConfig({
 }
 
 function GeminiModelPicker({ model, setModel }: { model: string; setModel: (v: string) => void }) {
+  const t = useTranslations("setup");
   return (
     <div className="space-y-1.5">
       <Label className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground">
-        Pick a model
+        {t("aiOllamaPickModel")}
       </Label>
       <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
         {RECOMMENDED_GEMINI_MODELS.map((m) => (
@@ -398,7 +416,7 @@ function GeminiModelPicker({ model, setModel }: { model: string; setModel: (v: s
               <span className="truncate text-[11px] font-bold tracking-tight">{m.name}</span>
               {m.recommended && (
                 <span className="rounded-full bg-primary/10 px-1 py-0 text-[8px] font-bold uppercase tracking-wider text-primary">
-                  rec
+                  {t("aiModelRecommendedBadge")}
                 </span>
               )}
             </div>
@@ -433,6 +451,8 @@ function OllamaConfig({
   onPull: () => void;
   onCancel: () => void;
 }) {
+  const t = useTranslations("setup");
+  const tModels = useTranslations("ollamaModels");
   return (
     <div className="space-y-3 rounded-xl border border-border bg-card/60 p-4">
       <div
@@ -451,18 +471,18 @@ function OllamaConfig({
         />
         {reachable === false ? (
           <>
-            Ollama not detected
+            {t("aiOllamaNotDetected")}
             <a
               href="https://ollama.com"
               target="_blank"
               rel="noreferrer"
               className="ms-auto font-bold underline"
             >
-              Install ↗
+              {t("aiOllamaInstall")}
             </a>
           </>
         ) : (
-          <>Ollama running on {url}</>
+          <>{t("aiOllamaRunningOn", { url })}</>
         )}
       </div>
 
@@ -471,7 +491,7 @@ function OllamaConfig({
           htmlFor="ollama-url"
           className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground"
         >
-          Server URL
+          {t("aiOllamaServerUrl")}
         </Label>
         <Input
           id="ollama-url"
@@ -483,7 +503,7 @@ function OllamaConfig({
 
       <div className="space-y-1.5">
         <Label className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground">
-          Pick a model
+          {t("aiOllamaPickModel")}
         </Label>
         <div className="grid grid-cols-3 gap-1.5">
           {RECOMMENDED_OLLAMA_MODELS.slice(0, 3).map((m) => (
@@ -501,12 +521,16 @@ function OllamaConfig({
                 <span className="truncate text-[11px] font-bold tracking-tight">{m.name}</span>
                 {m.recommended && (
                   <span className="rounded-full bg-primary/10 px-1 py-0 text-[8px] font-bold uppercase tracking-wider text-primary">
-                    rec
+                    {t("aiModelRecommendedBadge")}
                   </span>
                 )}
               </div>
-              <div className="mt-0.5 font-mono text-[9px] text-muted-foreground">{m.sizeGb} GB</div>
-              <p className="mt-1 text-[10px] leading-snug text-muted-foreground">{m.description}</p>
+              <div className="mt-0.5 font-mono text-[9px] text-muted-foreground">
+                {t("aiModelSizeGb", { size: m.sizeGb })}
+              </div>
+              <p className="mt-1 text-[10px] leading-snug text-muted-foreground">
+                {ollamaModelDescription(m.name, m.description, tModels)}
+              </p>
             </button>
           ))}
         </div>
@@ -526,11 +550,14 @@ function OllamaConfig({
 }
 
 function ManualNote() {
+  const t = useTranslations("setup");
   return (
     <div className="rounded-xl border border-border bg-card/60 p-4 text-[12px] leading-relaxed text-muted-foreground">
-      Spent will leave transactions <span className="text-foreground">uncategorized</span>; you can
-      assign categories from the transactions table any time. Switch to Claude, Gemini, or Ollama
-      later in <span className="font-bold text-foreground">Settings → AI</span>.
+      {t("aiManualNoteBefore")}{" "}
+      <span className="text-foreground">{t("aiManualNoteUncategorized")}</span>
+      {t("aiManualNoteAfterWithGemini")}{" "}
+      <span className="font-bold text-foreground">{t("aiManualNoteSettingsLink")}</span>
+      {t("aiManualNoteEnd")}
     </div>
   );
 }
@@ -552,12 +579,16 @@ function OllamaPullCTA({
   onPull: () => void;
   onCancel: () => void;
 }) {
+  const t = useTranslations("setup");
   const info: OllamaModelInfo | undefined = RECOMMENDED_OLLAMA_MODELS.find((m) => m.name === model);
 
   if (installed) {
     return (
       <div className="flex items-center gap-2 rounded-lg bg-primary/10 px-3 py-2 text-[12px] font-medium text-primary">
-        ✓ <span className="font-bold">{model}</span> is installed and ready.
+        {t.rich("aiOllamaInstalledReadyRich", {
+          model,
+          b: (chunks) => <span className="font-bold">{chunks}</span>,
+        })}
       </div>
     );
   }
@@ -569,14 +600,14 @@ function OllamaPullCTA({
       <div className="space-y-2 rounded-lg border border-border bg-background/50 p-2.5">
         <div className="flex items-center justify-between text-[12px]">
           <span className="font-medium">
-            {pullState.status === "starting" ? "Starting download..." : pullState.status}
+            {pullState.status === "starting" ? t("aiOllamaStartingDownload") : pullState.status}
           </span>
           <button
             type="button"
             onClick={onCancel}
             className="text-[11px] text-muted-foreground hover:text-foreground"
           >
-            Cancel
+            {t("aiOllamaCancel")}
           </button>
         </div>
         <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
@@ -605,7 +636,10 @@ function OllamaPullCTA({
   return (
     <div className="space-y-1">
       <Button type="button" onClick={onPull} disabled={reachable === false} className="w-full">
-        ↓ Download {model} {info ? `(${info.sizeGb} GB)` : ""}
+        {t("aiOllamaDownloadButton", {
+          model,
+          size: info ? `(${info.sizeGb} GB)` : "",
+        })}
       </Button>
       {pullError && <p className="text-[11px] text-destructive">{pullError}</p>}
     </div>

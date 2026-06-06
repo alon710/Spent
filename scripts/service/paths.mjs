@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
-export const PORT = 41234;
+export const PORT = 2412;
 export const HOST = "127.0.0.1";
 export const FRIENDLY_HOST = "spent.localhost";
 export const URL_BASE = `http://${FRIENDLY_HOST}:${PORT}`;

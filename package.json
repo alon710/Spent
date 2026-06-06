@@ -4,9 +4,9 @@
   "private": true,
   "packageManager": "bun@1.3.12",
   "scripts": {
-    "dev": "next dev -H 127.0.0.1 -p 3000",
+    "dev": "next dev -p 2412",
     "build": "next build",
-    "start": "next start -H 127.0.0.1 -p 41234",
+    "start": "next start -H 127.0.0.1 -p 2412",
     "lint": "eslint",
     "format": "biome format --write .",
     "format:check": "biome ci .",
@@ -32,7 +32,8 @@
     "menubar:build": "bash menubar/mac/build.sh",
     "menubar:install:mac": "bash menubar/mac/build.sh && cp -R menubar/mac/build/Spent.app ~/Applications/",
     "menubar:build:windows": "powershell -ExecutionPolicy Bypass -File menubar/windows/build.ps1",
-    "menubar:install:windows": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"& './menubar/windows/build.ps1'; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; $d = Join-Path $env:LOCALAPPDATA 'Programs\\Spent'; New-Item -ItemType Directory -Force -Path $d | Out-Null; Copy-Item -Force 'menubar/windows/build/Spent.exe' (Join-Path $d 'Spent.exe')\""
+    "menubar:install:windows": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"& './menubar/windows/build.ps1'; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; $d = Join-Path $env:LOCALAPPDATA 'Programs\\Spent'; New-Item -ItemType Directory -Force -Path $d | Out-Null; Copy-Item -Force 'menubar/windows/build/Spent.exe' (Join-Path $d 'Spent.exe')\"",
+    "doctor": "npx react-doctor@latest"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.79",

@@ -10,24 +10,30 @@ import {
   listBankCredentials,
   updateCredentialField,
 } from "@/server/db/queries/bank-credentials";
-import { getAllCategories } from "@/server/db/queries/categories";
+import { getAllCategories, getCategoryByName } from "@/server/db/queries/categories";
 import { getRecentCorrections } from "@/server/db/queries/category-corrections";
 import { getAppSettings } from "@/server/db/queries/settings";
 import { completeSyncRun, createSyncRun, failSyncRun } from "@/server/db/queries/sync-runs";
 import {
   batchSetNeedsReview,
   batchUpdateCategories,
+  getAtmExpenseCandidates,
+  getInternalTransferCandidates,
   getTransactionsForCategorization,
+  getUncategorizedAtmExpenses,
   getUncategorizedIdsByKind,
   insertTransactions,
+  markTransfersByIds,
 } from "@/server/db/queries/transactions";
 import { getWorkspace } from "@/server/db/queries/workspaces";
 import { toLocalISODate } from "@/server/lib/date-utils";
+import { findInternalTransferPairs } from "@/server/lib/internal-transfers";
 import {
   incrementMerchantHits,
   lookupMerchantCategoriesBulk,
   normalizeMerchant,
 } from "@/server/lib/merchant-memory";
+import { isAtmWithdrawal } from "@/server/lib/transfers";
 import { listAllWorkspaceIds } from "@/server/lib/workspace-context";
 import { scrapeBank } from "@/server/scrapers";
 import { scrapeOneZeroFirstTime, scrapeOneZeroWithToken } from "@/server/scrapers/one-zero";
@@ -391,6 +397,45 @@ export async function syncWorkspace(
 
   let categorized = 0;
   let aiWarning: string | null = null;
+
+  // Rule-based reclassification runs after all accounts are inserted (so pairs
+  // across accounts are visible) and before AI categorization (so reclassified
+  // rows are skipped by it). Bounded to the sync window for performance.
+  const fromDate = toLocalISODate(startDate);
+
+  // Internal transfers between the user's own accounts: a debit on one account
+  // and a matching credit on another inflate both expense and income. Flip both
+  // halves to 'transfer' and flag them so the user can confirm the heuristic.
+  const transferIds = findInternalTransferPairs(
+    getInternalTransferCandidates(workspaceId, fromDate),
+  ).flatMap((pair) => [pair.debitId, pair.creditId]);
+  if (transferIds.length > 0) {
+    markTransfersByIds(workspaceId, transferIds);
+    batchSetNeedsReview(
+      workspaceId,
+      transferIds.map((id) => ({ id, needsReview: true })),
+    );
+  }
+
+  // ATM cash withdrawals: either drop them from spend (for users who log cash
+  // manually) or deterministically file them under "Cash & ATM".
+  if (settings.treatAtmAsTransfers) {
+    const atmTransferIds = getAtmExpenseCandidates(workspaceId, fromDate).flatMap((r) =>
+      isAtmWithdrawal(r.description) ? [r.id] : [],
+    );
+    if (atmTransferIds.length > 0) markTransfersByIds(workspaceId, atmTransferIds);
+  } else {
+    const atmCategory = getCategoryByName(workspaceId, "Cash & ATM");
+    if (atmCategory) {
+      const atmUpdates = getUncategorizedAtmExpenses(workspaceId).flatMap((r) =>
+        isAtmWithdrawal(r.description) ? [{ id: r.id, categoryId: atmCategory.id }] : [],
+      );
+      if (atmUpdates.length > 0) {
+        batchUpdateCategories(workspaceId, atmUpdates);
+        categorized += atmUpdates.length;
+      }
+    }
+  }
 
   const aiProvider = createAIProvider();
   if (!aiProvider) {

@@ -27,7 +27,7 @@ export async function POST(request: Request) {
 
   const info = BANK_PROVIDERS.find((b) => b.id === body.provider);
   const passwordKeys =
-    info?.credentialFields.filter((f) => f.type === "password").map((f) => f.key) ?? [];
+    info?.credentialFields.flatMap((f) => (f.type === "password" ? [f.key] : [])) ?? [];
 
   const credentialId = body.credentialId;
   const existing = credentialId != null ? getBankCredentials(workspaceId, credentialId) : null;

@@ -6,10 +6,10 @@ import Foundation
 // in Info.plist. Do not change healthURL/syncURL/sameOrigin without re-reviewing
 // that. openInBrowserURL is handed to NSWorkspace and opens in the user's
 // browser, which is not subject to ATS, so it can use the friendly hostname.
-private let openInBrowserURL = URL(string: "http://spent.localhost:41234")!
-private let healthURL = URL(string: "http://127.0.0.1:41234/api/health")!
-private let syncURL = URL(string: "http://127.0.0.1:41234/api/sync")!
-private let sameOrigin = "http://127.0.0.1:41234"
+private let openInBrowserURL = URL(string: "http://spent.localhost:2412")!
+private let healthURL = URL(string: "http://127.0.0.1:2412/api/health")!
+private let syncURL = URL(string: "http://127.0.0.1:2412/api/sync")!
+private let sameOrigin = "http://127.0.0.1:2412"
 private let launchAgentLabel = "com.spent.app"
 private let launchAgentPlist =
     ("~/Library/LaunchAgents/com.spent.app.plist" as NSString).expandingTildeInPath

@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, Trash2 } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -31,6 +31,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Switch } from "@/components/ui/switch";
+import type { Locale } from "@/i18n/routing";
 import {
   deleteCategory,
   getCategories,
@@ -39,6 +40,8 @@ import {
   updateCategoryBudgetMode,
   updateCategoryDescription,
 } from "@/lib/api";
+import { tint } from "@/lib/colors";
+import { formatCurrency } from "@/lib/formatters";
 import type { Category, CategoryWithData } from "@/lib/types";
 
 const NONE_VALUE = "__none__";
@@ -94,6 +97,7 @@ function Body({
   allCategories: Category[];
   onClose: () => void;
 }) {
+  const t = useTranslations("settings.categories");
   const sameKind = allCategories.filter((c) => c.kind === category.kind && c.id !== category.id);
   const eligibleParents = sameKind
     .filter((c) => c.parentId == null)
@@ -122,8 +126,8 @@ function Body({
           <div className="min-w-0 flex-1">
             <SheetTitle>{category.name}</SheetTitle>
             <SheetDescription className="mt-0.5">
-              {category.kind === "expense" ? "Expense" : "Income"} category
-              {data?.parentName ? ` · in ${data.parentName}` : ""}
+              {category.kind === "expense" ? t("kindExpenseCategory") : t("kindIncomeCategory")}
+              {data?.parentName ? t("inParentSuffix", { parent: data.parentName }) : ""}
             </SheetDescription>
           </div>
         </div>
@@ -267,6 +271,9 @@ function DeleteCategorySection({
 }
 
 function BudgetSection({ category, data }: { category: Category; data: CategoryWithData | null }) {
+  const t = useTranslations("settings.categories");
+  const tc = useTranslations("common");
+  const locale = useLocale() as Locale;
   const queryClient = useQueryClient();
   const isBudgeted = category.budgetMode === "budgeted";
 
@@ -276,12 +283,18 @@ function BudgetSection({ category, data }: { category: Category; data: CategoryW
       queryClient.invalidateQueries({ queryKey: ["summary"] });
       queryClient.invalidateQueries({ queryKey: ["categories"] });
     },
+    onError: () => {
+      toast.error(tc("saveFailed"));
+    },
   });
 
   const budgetMutation = useMutation({
     mutationFn: (amount: number | null) => updateBudget(category.id, amount),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["summary"] });
+    },
+    onError: () => {
+      toast.error(tc("saveFailed"));
     },
   });
 
@@ -302,18 +315,16 @@ function BudgetSection({ category, data }: { category: Category; data: CategoryW
   return (
     <section>
       <div className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-        Budget
+        {t("budgetSectionLabel")}
       </div>
       <div className="mt-3 rounded-xl border border-border bg-card p-4">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0 flex-1 space-y-1">
             <Label htmlFor={`mode-${category.id}`} className="text-sm font-medium">
-              {isBudgeted ? "Budgeted" : "Tracking only"}
+              {isBudgeted ? t("budgeted") : t("trackingOnly")}
             </Label>
             <p className="text-xs text-muted-foreground">
-              {isBudgeted
-                ? "Show progress vs a monthly target."
-                : "Show spending without a target."}
+              {isBudgeted ? t("budgetedHint") : t("trackingOnlyHint")}
             </p>
           </div>
           <Switch
@@ -325,7 +336,7 @@ function BudgetSection({ category, data }: { category: Category; data: CategoryW
 
         {isBudgeted ? (
           <div className="mt-4 space-y-1.5">
-            <Label htmlFor={`budget-${category.id}`}>Monthly budget</Label>
+            <Label htmlFor={`budget-${category.id}`}>{t("monthlyBudget")}</Label>
             <InputGroup prefix="₪">
               <Input
                 id={`budget-${category.id}`}
@@ -339,10 +350,14 @@ function BudgetSection({ category, data }: { category: Category; data: CategoryW
             </InputGroup>
             {data ? (
               <p className="text-[11px] text-muted-foreground">
-                Spent ₪{Math.round(data.spent).toLocaleString("en-IL")} this month
-                {data.vsTypical && data.vsTypical.typical > 0 ? (
-                  <> · typical ≈ ₪{Math.round(data.vsTypical.typical).toLocaleString("en-IL")}</>
-                ) : null}
+                {t("spentThisMonth", {
+                  amount: formatCurrency(Math.round(data.spent), "ILS", locale),
+                })}
+                {data.vsTypical && data.vsTypical.typical > 0
+                  ? t("typicalSuffix", {
+                      amount: formatCurrency(Math.round(data.vsTypical.typical), "ILS", locale),
+                    })
+                  : null}
               </p>
             ) : null}
           </div>
@@ -359,24 +374,25 @@ function GroupSection({
   category: Category;
   eligibleParents: Category[];
 }) {
+  const t = useTranslations("settings.categories");
   const queryClient = useQueryClient();
   const mutation = useMutation({
     mutationFn: (parentId: number | null) => setCategoryParent(category.id, parentId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["categories"] });
       queryClient.invalidateQueries({ queryKey: ["summary"] });
-      toast.success("Group updated");
+      toast.success(t("groupUpdated"));
     },
     onError: (err: Error) => {
       const reason = err.message;
       if (reason === "kind-mismatch") {
-        toast.error("Parent must be the same kind (expense or income).");
+        toast.error(t("parentKindMismatch"));
       } else if (reason === "not-leaf-target") {
-        toast.error("Parent must be a top-level category.");
+        toast.error(t("parentMustBeTopLevel"));
       } else if (reason === "child-has-children") {
-        toast.error("Can't move a category that already has sub-categories under it.");
+        toast.error(t("childHasChildren"));
       } else {
-        toast.error("Couldn't update parent.");
+        toast.error(t("parentUpdateFailed"));
       }
     },
   });
@@ -385,10 +401,10 @@ function GroupSection({
   return (
     <section>
       <div className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-        Group
+        {t("groupSectionLabel")}
       </div>
       <div className="mt-3 rounded-xl border border-border bg-card p-4 space-y-2">
-        <Label>Parent group</Label>
+        <Label>{t("parentGroup")}</Label>
         <Select
           value={current}
           onValueChange={(v) => {
@@ -401,13 +417,13 @@ function GroupSection({
             <SelectValue>
               {(value: string) =>
                 value === NONE_VALUE
-                  ? "(no parent)"
-                  : (eligibleParents.find((p) => String(p.id) === value)?.name ?? "(no parent)")
+                  ? t("noParent")
+                  : (eligibleParents.find((p) => String(p.id) === value)?.name ?? t("noParent"))
               }
             </SelectValue>
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value={NONE_VALUE}>(no parent)</SelectItem>
+            <SelectItem value={NONE_VALUE}>{t("noParent")}</SelectItem>
             {eligibleParents.map((p) => (
               <SelectItem key={p.id} value={String(p.id)}>
                 {p.name}
@@ -415,15 +431,14 @@ function GroupSection({
             ))}
           </SelectContent>
         </Select>
-        <p className="text-[11px] text-muted-foreground">
-          Use a parent group to roll spending up. Most users keep the defaults.
-        </p>
+        <p className="text-[11px] text-muted-foreground">{t("parentGroupHint")}</p>
       </div>
     </section>
   );
 }
 
 function DescriptionSection({ category }: { category: Category }) {
+  const t = useTranslations("settings.categories");
   const queryClient = useQueryClient();
   const [value, setValue] = useState(category.description ?? "");
   useEffect(() => {
@@ -434,10 +449,10 @@ function DescriptionSection({ category }: { category: Category }) {
     mutationFn: (next: string | null) => updateCategoryDescription(category.id, next),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["categories"] });
-      toast.success("Description saved");
+      toast.success(t("descriptionSaved"));
     },
     onError: (err: Error) => {
-      toast.error(err.message || "Couldn't save description");
+      toast.error(err.message || t("descriptionSaveFailed"));
     },
   });
 
@@ -446,7 +461,7 @@ function DescriptionSection({ category }: { category: Category }) {
     const current = (category.description ?? "").trim();
     if (trimmed === current) return;
     if (trimmed.length > DESCRIPTION_MAX) {
-      toast.error(`Description must be ${DESCRIPTION_MAX} characters or fewer.`);
+      toast.error(t("descriptionTooLong", { max: DESCRIPTION_MAX }));
       return;
     }
     mutation.mutate(trimmed.length === 0 ? null : trimmed);
@@ -455,10 +470,10 @@ function DescriptionSection({ category }: { category: Category }) {
   return (
     <section>
       <div className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-        AI hint
+        {t("aiHintSectionLabel")}
       </div>
       <div className="mt-3 rounded-xl border border-border bg-card p-4 space-y-2">
-        <Label htmlFor={`desc-${category.id}`}>Description</Label>
+        <Label htmlFor={`desc-${category.id}`}>{t("descriptionLabel")}</Label>
         <textarea
           id={`desc-${category.id}`}
           value={value}
@@ -466,12 +481,12 @@ function DescriptionSection({ category }: { category: Category }) {
           onBlur={handleBlur}
           rows={4}
           maxLength={DESCRIPTION_MAX}
-          placeholder={`Describe what belongs in "${category.name}" — and what does NOT.`}
+          placeholder={t("descriptionPlaceholder", { name: category.name })}
           className="block w-full resize-y rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
           disabled={mutation.isPending}
         />
         <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-          <span>Sent to the AI on every categorize.</span>
+          <span>{t("aiHintFooter")}</span>
           <span className="tabular-nums">
             {value.length} / {DESCRIPTION_MAX}
           </span>
@@ -479,8 +494,4 @@ function DescriptionSection({ category }: { category: Category }) {
       </div>
     </section>
   );
-}
-
-function tint(color: string, alpha: number): string {
-  return `color-mix(in oklch, ${color} ${Math.round(alpha * 100)}%, var(--card))`;
 }

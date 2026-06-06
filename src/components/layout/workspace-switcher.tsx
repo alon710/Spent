@@ -2,7 +2,7 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, ChevronsUpDown, FolderKanban, Plus, Settings2 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useEffect } from "react";
 import {
   DropdownMenu,
@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
+import { useRouter } from "@/i18n/navigation";
 import { listWorkspaces } from "@/lib/api";
 import type { Workspace } from "@/lib/types";
 import { setActiveWorkspaceId, useActiveWorkspaceId } from "@/lib/workspace-store";
@@ -28,6 +29,7 @@ export function useSwitchWorkspace() {
 
 export function WorkspaceSwitcher() {
   const router = useRouter();
+  const t = useTranslations("workspaceSwitcher");
   const switchWorkspace = useSwitchWorkspace();
   const activeId = useActiveWorkspaceId();
 
@@ -61,7 +63,7 @@ export function WorkspaceSwitcher() {
               <SidebarMenuButton
                 size="lg"
                 className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
-                tooltip={active?.name ?? "Workspaces"}
+                tooltip={active?.name ?? t("heading")}
               />
             }
           >
@@ -69,15 +71,17 @@ export function WorkspaceSwitcher() {
               {initial}
             </div>
             <div className="flex min-w-0 flex-1 flex-col text-start group-data-[collapsible=icon]:hidden">
-              <span className="truncate text-sm font-medium">{active?.name ?? "Workspace"}</span>
-              <span className="truncate text-[11px] text-muted-foreground">Workspace</span>
+              <span className="truncate text-sm font-medium">
+                {active?.name ?? t("fallbackName")}
+              </span>
+              <span className="truncate text-[11px] text-muted-foreground">{t("switchHint")}</span>
             </div>
             <ChevronsUpDown className="ms-auto size-4 shrink-0 opacity-60 group-data-[collapsible=icon]:hidden" />
           </DropdownMenuTrigger>
 
           <DropdownMenuContent align="start" side="bottom" sideOffset={8} className="min-w-[14rem]">
             <div className="px-2 pb-1 pt-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Workspaces
+              {t("heading")}
             </div>
             {workspaces.map((w) => (
               <DropdownMenuItem key={w.id} onClick={() => switchWorkspace(w.id)} className="gap-2">
@@ -92,11 +96,11 @@ export function WorkspaceSwitcher() {
               className="gap-2"
             >
               <Plus className="size-4" />
-              New workspace
+              {t("newWorkspace")}
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => router.push("/settings#workspace")} className="gap-2">
+            <DropdownMenuItem onClick={() => router.push("/settings/general")} className="gap-2">
               <Settings2 className="size-4" />
-              Manage workspaces
+              {t("manage")}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

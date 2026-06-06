@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { Link } from "@/i18n/navigation";
 import { formatLastSync } from "@/lib/formatters";
 import { translateProviderName, useFormatterLabels } from "@/lib/i18n-data";
 import type { HomeBankHealthItem } from "@/lib/types";

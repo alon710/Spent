@@ -2,6 +2,7 @@
 
 import { ArrowDownRight, ArrowUpRight, Minus } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
+import { CardLabel } from "@/components/ui/card-label";
 import type { Locale } from "@/i18n/routing";
 import type { TransactionsSummary } from "@/lib/api";
 import { formatCurrency } from "@/lib/formatters";
@@ -100,9 +101,7 @@ function KpiCard({ label, amount, meta, icon, color, iconBg, loading, locale }: 
   return (
     <div className="rounded-2xl border border-border bg-card p-5">
       <div className="flex items-center justify-between">
-        <div className="text-xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
-          {label}
-        </div>
+        <CardLabel>{label}</CardLabel>
         <div
           className="flex h-7 w-7 items-center justify-center rounded-full"
           style={{ backgroundColor: iconBg, color }}
