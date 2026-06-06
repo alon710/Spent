@@ -113,7 +113,7 @@ export function AIStep({ onComplete, onBack }: AIStepProps) {
   const canContinue =
     choice === "none" ||
     (choice === "claude" && /^sk-ant-/.test(apiKey) && apiKey.length > 25) ||
-    (choice === "gemini" && /^AIza/.test(geminiKey) && geminiKey.length > 30) ||
+    (choice === "gemini" && geminiKey.length > 30) ||
     (choice === "ollama" && modelInstalled);
 
   const handlePull = () => {
