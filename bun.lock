@@ -17,7 +17,7 @@
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",
         "framer-motion": "^12.38.0",
-        "israeli-bank-scrapers": "6.7.4",
+        "israeli-bank-scrapers": "^6.7.5",
         "lucide-react": "^1.14.0",
         "next": "16.2.6",
         "next-intl": "^4.12.0",
@@ -63,6 +63,9 @@
     "better-sqlite3",
     "puppeteer",
   ],
+  "patchedDependencies": {
+    "israeli-bank-scrapers@6.7.5": "patches/israeli-bank-scrapers@6.7.5.patch",
+  },
   "packages": {
     "@ai-sdk/anthropic": ["@ai-sdk/anthropic@3.0.79", "", { "dependencies": { "@ai-sdk/provider": "3.0.10", "@ai-sdk/provider-utils": "4.0.27" }, "peerDependencies": { "zod": "^3.25.76 || ^4.1.8" } }, "sha512-saEX+h5JDOkT9P/+REKDyikbnJiToFuLipgNcsmu4Zr3GW5kW1m9HhvrPK+vj63itIOsoZU6tmVIjkrePOlIUA=="],
 
@@ -1272,7 +1275,7 @@
 
     "isexe": ["isexe@2.0.0", "", {}, "sha512-RHxMLp9lnKHGHRng9QFhRCMbYAcVpn69smSGcq3f36xjgVVWThj4qqLbTLlq7Ssj8B+fIQ1EuCEGI2lKsyQeIw=="],
 
-    "israeli-bank-scrapers": ["israeli-bank-scrapers@6.7.4", "", { "dependencies": { "debug": "^4.3.2", "moment": "^2.22.2", "moment-timezone": "^0.5.37", "puppeteer": "^24.40.0" } }, "sha512-M6aEws/6Pxks8/INtDYCbLPDWeoZLStNF9ulTalUg89pAyFemNznl0SkcniIDqIQIZN/5vhtr79HojgvRpxN5w=="],
+    "israeli-bank-scrapers": ["israeli-bank-scrapers@6.7.5", "", { "dependencies": { "debug": "^4.3.2", "moment": "^2.22.2", "moment-timezone": "^0.5.37", "puppeteer": "^24.40.0" } }, "sha512-0HVNoBc01w8M6jqTuJAgPHhTq2+oKoDXQ5wrQOfoEdTlZVArlsulq4188OVXQ1HEoQr9lbdMtm8hLfxI/gOu+A=="],
 
     "iterator.prototype": ["iterator.prototype@1.1.5", "", { "dependencies": { "define-data-property": "^1.1.4", "es-object-atoms": "^1.0.0", "get-intrinsic": "^1.2.6", "get-proto": "^1.0.0", "has-symbols": "^1.1.0", "set-function-name": "^2.0.2" } }, "sha512-H0dkQoCa3b2VEeKQBOxFph+JAbcrQdE7KC0UkqwpLmv2EC4P41QXP+rqo9wYodACiG5/WM5s9oDApTU8utwj9g=="],
 

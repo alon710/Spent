@@ -532,10 +532,9 @@ export const BANK_PROVIDERS: BankProviderInfo[] = [
       { key: "password", label: "Password", type: "password" },
       {
         key: "num",
-        label: "Account Number",
+        label: "Identifier Code (קוד מזהה)",
         type: "text",
-        placeholder: "Your Discount account number",
-        numeric: true,
+        placeholder: "Your Discount identifier code",
       },
     ],
     enabled: true,
