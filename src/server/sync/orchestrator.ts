@@ -12,22 +12,19 @@ import {
 } from "@/server/db/queries/bank-credentials";
 import { getAllCategories, getCategoryByName } from "@/server/db/queries/categories";
 import { getRecentCorrections } from "@/server/db/queries/category-corrections";
+import { applyMerchantRulesToSyncRun } from "@/server/db/queries/excluded-merchants";
 import { getAppSettings } from "@/server/db/queries/settings";
 import { completeSyncRun, createSyncRun, failSyncRun } from "@/server/db/queries/sync-runs";
 import {
   batchSetNeedsReview,
   batchUpdateCategories,
-  getAtmExpenseCandidates,
-  getInternalTransferCandidates,
   getTransactionsForCategorization,
   getUncategorizedAtmExpenses,
   getUncategorizedIdsByKind,
   insertTransactions,
-  markTransfersByIds,
 } from "@/server/db/queries/transactions";
 import { getWorkspace } from "@/server/db/queries/workspaces";
 import { toLocalISODate } from "@/server/lib/date-utils";
-import { findInternalTransferPairs } from "@/server/lib/internal-transfers";
 import {
   incrementMerchantHits,
   lookupMerchantCategoriesBulk,
@@ -39,6 +36,7 @@ import { scrapeBank } from "@/server/scrapers";
 import { scrapeOneZeroFirstTime, scrapeOneZeroWithToken } from "@/server/scrapers/one-zero";
 import type { ScrapeResult } from "@/server/scrapers/types";
 import { markSyncEnd, markSyncHeartbeat, markSyncStart } from "@/server/sync/activity";
+import { runMatchingStep } from "@/server/sync/matching-step";
 import { cancelOtpRequest, registerOtpRequest } from "@/server/sync/otp-bridge";
 
 export type SyncEventSender = (event: string, data: Record<string, unknown>) => void;
@@ -246,6 +244,7 @@ async function syncOneCredential(
     meta.id,
     syncRunId,
   );
+  applyMerchantRulesToSyncRun(workspaceId, syncRunId);
   completeSyncRun(syncRunId, added, updated);
 
   return {
@@ -403,28 +402,16 @@ export async function syncWorkspace(
   // rows are skipped by it). Bounded to the sync window for performance.
   const fromDate = toLocalISODate(startDate);
 
-  // Internal transfers between the user's own accounts: a debit on one account
-  // and a matching credit on another inflate both expense and income. Flip both
-  // halves to 'transfer' and flag them so the user can confirm the heuristic.
-  const transferIds = findInternalTransferPairs(
-    getInternalTransferCandidates(workspaceId, fromDate),
-  ).flatMap((pair) => [pair.debitId, pair.creditId]);
-  if (transferIds.length > 0) {
-    markTransfersByIds(workspaceId, transferIds);
-    batchSetNeedsReview(
-      workspaceId,
-      transferIds.map((id) => ({ id, needsReview: true })),
-    );
-  }
+  // Cross-account deduplication: group internal transfers, bank-side credit card
+  // bill payments, and (when the user tracks cash manually) ATM withdrawals into
+  // auditable financial events, flipping their kind so spend is counted exactly
+  // once. Generalizes the previous ad-hoc kind-flipping; the individual
+  // matchers and confidence scoring live in src/server/lib/matching.ts.
+  runMatchingStep(workspaceId, fromDate, settings.treatAtmAsTransfers);
 
-  // ATM cash withdrawals: either drop them from spend (for users who log cash
-  // manually) or deterministically file them under "Cash & ATM".
-  if (settings.treatAtmAsTransfers) {
-    const atmTransferIds = getAtmExpenseCandidates(workspaceId, fromDate).flatMap((r) =>
-      isAtmWithdrawal(r.description) ? [r.id] : [],
-    );
-    if (atmTransferIds.length > 0) markTransfersByIds(workspaceId, atmTransferIds);
-  } else {
+  // ATM cash withdrawals that are NOT treated as transfers are filed under the
+  // "Cash & ATM" category so they stay visible as ordinary spend.
+  if (!settings.treatAtmAsTransfers) {
     const atmCategory = getCategoryByName(workspaceId, "Cash & ATM");
     if (atmCategory) {
       const atmUpdates = getUncategorizedAtmExpenses(workspaceId).flatMap((r) =>

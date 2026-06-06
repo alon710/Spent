@@ -1,8 +1,11 @@
 import "server-only";
 
+import { sql } from "drizzle-orm";
 import type { PastCorrection } from "@/server/ai/types";
 import { normalizeMerchant } from "../../lib/merchant-memory";
 import { getDb } from "../index";
+import { getOrm } from "../orm";
+import { categoryCorrections } from "../schema";
 
 export function recordCorrection(
   workspaceId: number,
@@ -13,18 +16,30 @@ export function recordCorrection(
 ): void {
   const key = normalizeMerchant(description);
   if (!key) return;
-  getDb()
-    .prepare(
-      `INSERT INTO category_corrections
-         (workspace_id, merchant_key, description, ai_category_id, user_category_id, kind)
-       VALUES (?, ?, ?, ?, ?, ?)
-       ON CONFLICT(workspace_id, merchant_key, ai_category_id) DO UPDATE SET
-         user_category_id = excluded.user_category_id,
-         description = excluded.description,
-         kind = excluded.kind,
-         created_at = datetime('now')`,
-    )
-    .run(workspaceId, key, description, aiCategoryId, userCategoryId, kind);
+  getOrm()
+    .insert(categoryCorrections)
+    .values({
+      workspaceId,
+      merchantKey: key,
+      description,
+      aiCategoryId,
+      userCategoryId,
+      kind,
+    })
+    .onConflictDoUpdate({
+      target: [
+        categoryCorrections.workspaceId,
+        categoryCorrections.merchantKey,
+        categoryCorrections.aiCategoryId,
+      ],
+      set: {
+        userCategoryId,
+        description,
+        kind,
+        createdAt: sql`datetime('now')`,
+      },
+    })
+    .run();
 }
 
 export function getRecentCorrections(

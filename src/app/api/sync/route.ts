@@ -16,7 +16,7 @@ export async function POST(request: Request) {
 
   // When the request includes X-Workspace-ID we sync only that workspace
   // (the in-app "Sync now" button). When it's absent we treat it as a
-  // multi-workspace trigger from the menubar and sync every workspace.
+  // multi-workspace trigger and sync every workspace.
   const headerPresent = hasWorkspaceHeader(request);
 
   const encoder = new TextEncoder();

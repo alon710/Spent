@@ -1,7 +1,10 @@
 import "server-only";
 
 import type { UIMessage } from "ai";
+import { and, asc, eq, or, sql } from "drizzle-orm";
 import { getDb } from "../index";
+import { getOrm } from "../orm";
+import { chatMessages, chatSessions } from "../schema";
 
 export interface ChatSession {
   id: string;
@@ -24,12 +27,6 @@ interface ChatSessionRow {
   created_at: string;
   updated_at: string;
   message_count?: number;
-}
-
-interface ChatMessageRow {
-  message_id: string;
-  role: UIMessage["role"];
-  parts_json: string;
 }
 
 const DEFAULT_TITLE = "New chat";
@@ -73,27 +70,35 @@ export function listChatSessions(workspaceId: number): ChatSessionSummary[] {
 }
 
 export function getChatSession(workspaceId: number, id: string): ChatSession | null {
-  const row = getDb()
-    .prepare(
-      `SELECT id, workspace_id, title, title_source, created_at, updated_at
-       FROM chat_sessions
-       WHERE workspace_id = ? AND id = ?`,
-    )
-    .get(workspaceId, id) as ChatSessionRow | undefined;
-  return row ? mapSession(row) : null;
+  const row = getOrm()
+    .select({
+      id: chatSessions.id,
+      workspaceId: chatSessions.workspaceId,
+      title: chatSessions.title,
+      titleSource: chatSessions.titleSource,
+      createdAt: chatSessions.createdAt,
+      updatedAt: chatSessions.updatedAt,
+    })
+    .from(chatSessions)
+    .where(and(eq(chatSessions.workspaceId, workspaceId), eq(chatSessions.id, id)))
+    .get();
+  return row ?? null;
 }
 
 export function ensureChatSession(workspaceId: number, id: string): ChatSession {
   const normalizedId = id.trim();
   if (!normalizedId) throw new Error("chat session id is required");
 
-  getDb()
-    .prepare(
-      `INSERT INTO chat_sessions (id, workspace_id, title, title_source)
-       VALUES (?, ?, ?, 'auto')
-       ON CONFLICT(id) DO NOTHING`,
-    )
-    .run(normalizedId, workspaceId, DEFAULT_TITLE);
+  getOrm()
+    .insert(chatSessions)
+    .values({
+      id: normalizedId,
+      workspaceId,
+      title: DEFAULT_TITLE,
+      titleSource: "auto",
+    })
+    .onConflictDoNothing({ target: chatSessions.id })
+    .run();
 
   const session = getChatSession(workspaceId, normalizedId);
   if (!session) throw new Error("chat session belongs to another workspace");
@@ -109,42 +114,47 @@ export function updateChatSessionTitle(
   const normalized = normalizeTitle(title);
   if (!normalized) return getChatSession(workspaceId, id);
 
-  const result = getDb()
-    .prepare(
-      `UPDATE chat_sessions
-       SET title = ?, title_source = ?, updated_at = datetime('now')
-       WHERE workspace_id = ? AND id = ?
-         AND (? = 'manual' OR title_source != 'manual')`,
+  getOrm()
+    .update(chatSessions)
+    .set({ title: normalized, titleSource: source, updatedAt: sql`datetime('now')` })
+    .where(
+      and(
+        eq(chatSessions.workspaceId, workspaceId),
+        eq(chatSessions.id, id),
+        or(sql`${source} = 'manual'`, sql`${chatSessions.titleSource} != 'manual'`),
+      ),
     )
-    .run(normalized, source, workspaceId, id, source);
+    .run();
 
-  if (result.changes === 0) return getChatSession(workspaceId, id);
   return getChatSession(workspaceId, id);
 }
 
 export function deleteChatSession(workspaceId: number, id: string): boolean {
-  const result = getDb()
-    .prepare("DELETE FROM chat_sessions WHERE workspace_id = ? AND id = ?")
-    .run(workspaceId, id);
+  const result = getOrm()
+    .delete(chatSessions)
+    .where(and(eq(chatSessions.workspaceId, workspaceId), eq(chatSessions.id, id)))
+    .run();
   return result.changes > 0;
 }
 
 export function getChatMessages(workspaceId: number, sessionId: string): UIMessage[] | null {
   if (!getChatSession(workspaceId, sessionId)) return null;
 
-  const rows = getDb()
-    .prepare(
-      `SELECT message_id, role, parts_json
-       FROM chat_messages
-       WHERE session_id = ?
-       ORDER BY position ASC`,
-    )
-    .all(sessionId) as ChatMessageRow[];
+  const rows = getOrm()
+    .select({
+      messageId: chatMessages.messageId,
+      role: chatMessages.role,
+      partsJson: chatMessages.partsJson,
+    })
+    .from(chatMessages)
+    .where(eq(chatMessages.sessionId, sessionId))
+    .orderBy(asc(chatMessages.position))
+    .all();
 
   return rows.map((row) => ({
-    id: row.message_id,
-    role: row.role,
-    parts: JSON.parse(row.parts_json) as UIMessage["parts"],
+    id: row.messageId,
+    role: row.role as UIMessage["role"],
+    parts: JSON.parse(row.partsJson) as UIMessage["parts"],
   }));
 }
 
@@ -155,18 +165,22 @@ export function replaceChatMessages(
 ): void {
   ensureChatSession(workspaceId, sessionId);
 
-  const db = getDb();
-  db.transaction(() => {
-    db.prepare("DELETE FROM chat_messages WHERE session_id = ?").run(sessionId);
-    const insert = db.prepare(
-      `INSERT INTO chat_messages (session_id, message_id, role, parts_json, position)
-       VALUES (?, ?, ?, ?, ?)`,
-    );
+  getOrm().transaction((tx) => {
+    tx.delete(chatMessages).where(eq(chatMessages.sessionId, sessionId)).run();
     messages.forEach((message, index) => {
-      insert.run(sessionId, message.id, message.role, JSON.stringify(message.parts), index);
+      tx.insert(chatMessages)
+        .values({
+          sessionId,
+          messageId: message.id,
+          role: message.role,
+          partsJson: JSON.stringify(message.parts),
+          position: index,
+        })
+        .run();
     });
-    db.prepare(
-      "UPDATE chat_sessions SET updated_at = datetime('now') WHERE workspace_id = ? AND id = ?",
-    ).run(workspaceId, sessionId);
-  })();
+    tx.update(chatSessions)
+      .set({ updatedAt: sql`datetime('now')` })
+      .where(and(eq(chatSessions.workspaceId, workspaceId), eq(chatSessions.id, sessionId)))
+      .run();
+  });
 }

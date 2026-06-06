@@ -3,8 +3,11 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowDownRight,
+  ArrowLeftRight,
   ArrowUpRight,
   Check,
+  Eye,
+  EyeOff,
   HelpCircle,
   MoreHorizontal,
   Tags,
@@ -46,6 +49,7 @@ import type { Locale } from "@/i18n/routing";
 import {
   approveTransactionCategory,
   getCategories,
+  setTransactionExcluded,
   setTransactionKind,
   updateTransactionCategory,
 } from "@/lib/api";
@@ -167,6 +171,37 @@ export function TransactionsTable({
       queryClient.invalidateQueries({ queryKey: ["transactions-summary"] });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : tc("saveFailed"));
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const invalidateAfterExclude = () => {
+    queryClient.invalidateQueries({ queryKey: ["transactions"] });
+    queryClient.invalidateQueries({ queryKey: ["summary"] });
+    queryClient.invalidateQueries({ queryKey: ["transactions-summary"] });
+    queryClient.invalidateQueries({ queryKey: ["home"] });
+    queryClient.invalidateQueries({ queryKey: ["categories"] });
+    queryClient.invalidateQueries({ queryKey: ["excluded-merchants"] });
+  };
+
+  const handleExcludeToggle = async (txn: TransactionWithCategory, alwaysForMerchant = false) => {
+    const nextExcluded = !txn.isExcluded;
+    setUpdatingId(txn.id);
+    try {
+      await setTransactionExcluded(txn.id, nextExcluded, alwaysForMerchant);
+      invalidateAfterExclude();
+      if (nextExcluded) {
+        toast.success(
+          alwaysForMerchant
+            ? t("excludeMerchantToast", { merchant: txn.description })
+            : t("excludeToast"),
+        );
+      } else {
+        toast.success(t("includeToast"));
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed");
     } finally {
       setUpdatingId(null);
     }
@@ -434,7 +469,10 @@ export function TransactionsTable({
                   return (
                     <TableRow
                       key={txn.id}
-                      className="transition-colors duration-200 hover:bg-muted/50"
+                      className={cn(
+                        "transition-colors duration-200 hover:bg-muted/50",
+                        txn.isExcluded && "opacity-50",
+                      )}
                     >
                       <TableCell>
                         <div style={{ color: directionColor }}>
@@ -451,6 +489,18 @@ export function TransactionsTable({
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <div className="font-medium">{txn.description}</div>
+                          {txn.eventId != null && txn.eventRole != null && (
+                            <span
+                              className="inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground"
+                              style={{ backgroundColor: "var(--muted)" }}
+                              title={t("eventBadgeTooltip")}
+                            >
+                              <ArrowLeftRight className="h-3 w-3" />
+                              {txn.eventRole === "bill_payment"
+                                ? t("eventCardPayment")
+                                : t("eventTransfer")}
+                            </span>
+                          )}
                           {txn.needsReview && (
                             <span
                               className="inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-medium"
@@ -575,6 +625,23 @@ export function TransactionsTable({
                                 {opt.label}
                               </DropdownMenuItem>
                             ))}
+                            {txn.isExcluded ? (
+                              <DropdownMenuItem onClick={() => handleExcludeToggle(txn, false)}>
+                                <Eye className="me-2 h-3.5 w-3.5" />
+                                {t("includeAction")}
+                              </DropdownMenuItem>
+                            ) : (
+                              <>
+                                <DropdownMenuItem onClick={() => handleExcludeToggle(txn, false)}>
+                                  <EyeOff className="me-2 h-3.5 w-3.5" />
+                                  {t("excludeAction")}
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleExcludeToggle(txn, true)}>
+                                  <EyeOff className="me-2 h-3.5 w-3.5" />
+                                  {t("excludeMerchantAction")}
+                                </DropdownMenuItem>
+                              </>
+                            )}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>

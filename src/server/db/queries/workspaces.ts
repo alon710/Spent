@@ -1,14 +1,17 @@
 import "server-only";
 
+import { asc, eq, sql } from "drizzle-orm";
 import type { Workspace } from "@/lib/types";
 import { getDb } from "../index";
+import { getOrm } from "../orm";
+import { categories, workspaces } from "../schema";
 
 interface WorkspaceRow {
   id: number;
   name: string;
   slug: string;
-  created_at: string;
-  updated_at: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 function mapRow(row: WorkspaceRow): Workspace {
@@ -16,22 +19,38 @@ function mapRow(row: WorkspaceRow): Workspace {
     id: row.id,
     name: row.name,
     slug: row.slug,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
   };
 }
 
 export function listWorkspaces(): Workspace[] {
-  const rows = getDb()
-    .prepare("SELECT id, name, slug, created_at, updated_at FROM workspaces ORDER BY id")
-    .all() as WorkspaceRow[];
+  const rows = getOrm()
+    .select({
+      id: workspaces.id,
+      name: workspaces.name,
+      slug: workspaces.slug,
+      createdAt: workspaces.createdAt,
+      updatedAt: workspaces.updatedAt,
+    })
+    .from(workspaces)
+    .orderBy(asc(workspaces.id))
+    .all();
   return rows.map(mapRow);
 }
 
 export function getWorkspace(id: number): Workspace | null {
-  const row = getDb()
-    .prepare("SELECT id, name, slug, created_at, updated_at FROM workspaces WHERE id = ?")
-    .get(id) as WorkspaceRow | undefined;
+  const row = getOrm()
+    .select({
+      id: workspaces.id,
+      name: workspaces.name,
+      slug: workspaces.slug,
+      createdAt: workspaces.createdAt,
+      updatedAt: workspaces.updatedAt,
+    })
+    .from(workspaces)
+    .where(eq(workspaces.id, id))
+    .get();
   return row ? mapRow(row) : null;
 }
 
@@ -255,13 +274,11 @@ function slugify(name: string): string {
 }
 
 function uniqueSlug(base: string): string {
-  const db = getDb();
+  const orm = getOrm();
   let candidate = base;
   let n = 2;
   while (
-    db.prepare("SELECT 1 FROM workspaces WHERE slug = ?").get(candidate) as
-      | { 1: number }
-      | undefined
+    orm.select({ id: workspaces.id }).from(workspaces).where(eq(workspaces.slug, candidate)).get()
   ) {
     candidate = `${base}-${n++}`;
   }
@@ -273,25 +290,28 @@ export function createWorkspace(name: string): Workspace {
   if (!trimmed) throw new Error("Workspace name is required");
   if (trimmed.length > 60) throw new Error("Workspace name too long");
 
-  const db = getDb();
+  const orm = getOrm();
   const slug = uniqueSlug(slugify(trimmed));
 
-  const create = db.transaction(() => {
-    const result = db
-      .prepare("INSERT INTO workspaces (name, slug) VALUES (?, ?)")
-      .run(trimmed, slug);
-    const id = Number(result.lastInsertRowid);
+  const id = orm.transaction((tx) => {
+    const result = tx.insert(workspaces).values({ name: trimmed, slug }).run();
+    const newId = Number(result.lastInsertRowid);
 
-    const insertCat = db.prepare(
-      "INSERT INTO categories (workspace_id, name, color, icon, kind, description) VALUES (?, ?, ?, ?, ?, ?)",
-    );
     for (const c of SEED_CATEGORIES) {
-      insertCat.run(id, c.name, c.color, c.icon, c.kind, c.description);
+      tx.insert(categories)
+        .values({
+          workspaceId: newId,
+          name: c.name,
+          color: c.color,
+          icon: c.icon,
+          kind: c.kind,
+          description: c.description,
+        })
+        .run();
     }
-    return id;
+    return newId;
   });
 
-  const id = create();
   const row = getWorkspace(id);
   if (!row) throw new Error("Workspace creation failed");
   return row;
@@ -302,7 +322,6 @@ export function updateWorkspace(id: number, name: string): Workspace {
   if (!trimmed) throw new Error("Workspace name is required");
   if (trimmed.length > 60) throw new Error("Workspace name too long");
 
-  const db = getDb();
   const existing = getWorkspace(id);
   if (!existing) throw new Error("Workspace not found");
 
@@ -311,9 +330,11 @@ export function updateWorkspace(id: number, name: string): Workspace {
     slug = uniqueSlug(slugify(trimmed));
   }
 
-  db.prepare(
-    "UPDATE workspaces SET name = ?, slug = ?, updated_at = datetime('now') WHERE id = ?",
-  ).run(trimmed, slug, id);
+  getOrm()
+    .update(workspaces)
+    .set({ name: trimmed, slug, updatedAt: sql`datetime('now')` })
+    .where(eq(workspaces.id, id))
+    .run();
 
   const updated = getWorkspace(id);
   if (!updated) throw new Error("Workspace update failed");
@@ -324,5 +345,5 @@ export function deleteWorkspace(id: number): void {
   if (countWorkspaces() <= 1) {
     throw new Error("Cannot delete the only workspace");
   }
-  getDb().prepare("DELETE FROM workspaces WHERE id = ?").run(id);
+  getOrm().delete(workspaces).where(eq(workspaces.id, id)).run();
 }

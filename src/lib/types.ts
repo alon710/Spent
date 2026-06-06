@@ -41,6 +41,10 @@ export interface Transaction {
   syncRunId: number;
   kind: "expense" | "income" | "transfer";
   needsReview: boolean;
+  /** Set when this row is the grouping leg of a financial event. */
+  eventId: number | null;
+  eventRole: EventRole | null;
+  matchConfidence: number | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -49,6 +53,78 @@ export interface TransactionWithCategory extends Transaction {
   categoryName: string | null;
   categoryColor: string | null;
   isExcluded: boolean;
+}
+
+// ---------------------------------------------------------------------------
+// Financial Events: the cross-account deduplication layer. The same real-world
+// money movement (a transfer, a credit card bill payment, an ATM withdrawal)
+// shows up as N transaction rows once several accounts are aggregated; an event
+// groups those rows so spend is counted exactly once. See
+// docs/transaction-deduplication-design.md.
+// ---------------------------------------------------------------------------
+
+export type EventType =
+  | "internal_transfer"
+  | "credit_card_payment"
+  | "credit_card_statement"
+  | "atm_withdrawal"
+  | "loan_repayment"
+  | "investment_transfer"
+  | "refund_reversal"
+  | "fee"
+  | "duplicate";
+
+export type EventRole = "debit" | "credit" | "bill_payment" | "purchase" | "fee" | "reversal";
+
+export type EventStatus = "suggested" | "confirmed" | "rejected";
+
+export type EventSource = "heuristic" | "rule" | "user" | "ai";
+
+export interface FinancialEvent {
+  id: number;
+  workspaceId: number;
+  eventType: EventType;
+  canonicalTransactionId: number | null;
+  status: EventStatus;
+  source: EventSource;
+  confidence: number;
+  reasons: string[];
+  eventKey: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface EventMember {
+  id: number;
+  workspaceId: number;
+  eventId: number;
+  transactionId: number;
+  role: EventRole;
+  priorKind: Transaction["kind"] | null;
+  matchConfidence: number | null;
+  createdAt: string;
+}
+
+/** A financial event plus the transaction rows it groups, for review and display. */
+export interface FinancialEventWithMembers extends FinancialEvent {
+  members: (EventMember & {
+    description: string;
+    date: string;
+    chargedAmount: number;
+    chargedCurrency: string | null;
+    provider: string;
+    accountLabel: string | null;
+  })[];
+}
+
+export interface MatchSettings {
+  eventType: EventType;
+  epsilon: number;
+  dayWindow: number;
+  minScore: number;
+  autoScore: number;
+  requireKeyword: boolean;
+  enabled: boolean;
 }
 
 export type CategoryKind = "expense" | "income";
@@ -530,10 +606,10 @@ export const BANK_PROVIDERS: BankProviderInfo[] = [
       { key: "password", label: "Password", type: "password" },
       {
         key: "num",
-        label: "Account Number",
+        label: "Identifier Code",
         type: "text",
-        placeholder: "Your Discount account number",
-        numeric: true,
+        placeholder: "Your קוד מזהה",
+        hint: "The 'קוד מזהה' you set up for Discount online banking. May contain letters and numbers, not the same as your account number.",
       },
     ],
     enabled: true,
@@ -557,10 +633,10 @@ export const BANK_PROVIDERS: BankProviderInfo[] = [
       { key: "password", label: "Password", type: "password" },
       {
         key: "num",
-        label: "Account Number",
+        label: "Identifier Code",
         type: "text",
-        placeholder: "Your Mercantile account number",
-        numeric: true,
+        placeholder: "Your קוד מזהה",
+        hint: "The 'קוד מזהה' you set up for Mercantile online banking. May contain letters and numbers, not the same as your account number.",
       },
     ],
     enabled: true,
