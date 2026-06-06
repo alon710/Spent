@@ -15,15 +15,15 @@ export async function GET(request: Request) {
 
   // Support multi-id filter ("?categoryIds=1&categoryIds=2") for parent
   // category drilldowns (parent expands to its children client-side).
-  const categoryIds = searchParams
-    .getAll("categoryIds")
-    .map((v) => Number(v))
-    .filter((n) => Number.isFinite(n));
+  const categoryIds = searchParams.getAll("categoryIds").flatMap((v) => {
+    const n = Number(v);
+    return Number.isFinite(n) ? [n] : [];
+  });
 
-  const credentialIds = searchParams
-    .getAll("credentialIds")
-    .map((v) => Number(v))
-    .filter((n) => Number.isFinite(n) && n > 0);
+  const credentialIds = searchParams.getAll("credentialIds").flatMap((v) => {
+    const n = Number(v);
+    return Number.isFinite(n) && n > 0 ? [n] : [];
+  });
 
   const result = queryTransactions(workspaceId, {
     from: searchParams.get("from") ?? undefined,

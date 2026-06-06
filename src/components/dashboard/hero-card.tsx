@@ -1,8 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Link } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
 import { formatCurrency } from "@/lib/formatters";
 import { translateCategoryName } from "@/lib/i18n-data";
@@ -38,7 +38,7 @@ export function HeroCard({ data, loading, monthLabel }: HeroCardProps) {
 
   if (loading || !data) {
     return (
-      <div className="rounded-3xl border border-border bg-card p-8">
+      <div className="rounded-2xl border border-border bg-card p-8">
         <Skeleton className="h-40 w-full" />
       </div>
     );
@@ -56,9 +56,10 @@ export function HeroCard({ data, loading, monthLabel }: HeroCardProps) {
   } = data;
   const hasBudget = totalBudget > 0;
 
-  const parentIdsWithRollup = new Set(
-    categoriesWithData.filter((c) => c.isParent).map((c) => c.categoryId),
-  );
+  const parentIdsWithRollup = new Set<number>();
+  for (const c of categoriesWithData) {
+    if (c.isParent) parentIdsWithRollup.add(c.categoryId);
+  }
   const sorted = [...categoriesWithData]
     .filter(
       (c) =>
@@ -81,7 +82,7 @@ export function HeroCard({ data, loading, monthLabel }: HeroCardProps) {
       ? [
           {
             name: t("moreCategories", { count: rest.length }),
-            color: "#B1AA9C",
+            color: "var(--muted-foreground)",
             amount: restTotal,
             pct: grandTotal > 0 ? (restTotal / grandTotal) * 100 : 0,
           },
@@ -149,7 +150,7 @@ export function HeroCard({ data, loading, monthLabel }: HeroCardProps) {
   );
 
   return (
-    <div className="relative overflow-hidden rounded-3xl border border-border bg-card p-6 md:p-8 lg:p-10">
+    <div className="relative overflow-hidden rounded-2xl border border-border bg-card p-6 md:p-8 lg:p-10">
       {hasBudget ? (
         <div className="grid gap-6 md:grid-cols-[200px_1fr] md:gap-10 lg:grid-cols-[240px_1fr]">
           <div className="flex flex-col items-center justify-center gap-2">
@@ -171,16 +172,25 @@ export function HeroCard({ data, loading, monthLabel }: HeroCardProps) {
   );
 }
 
+// Built once at module scope: rebuilding Intl formatters per render loads
+// locale-data tables and is wasteful. This helper runs after an early return
+// in HeroCard, so useMemo is not an option (it would break the Rules of Hooks).
+const TODAY_FORMAT_HE = new Intl.DateTimeFormat("he-IL", {
+  weekday: "long",
+  month: "long",
+  day: "numeric",
+});
+const TODAY_FORMAT_EN = new Intl.DateTimeFormat("en-IL", {
+  weekday: "long",
+  month: "long",
+  day: "numeric",
+});
+
 function useTodayPhrase(serverLabel: string, locale: Locale): string {
   // Re-format today's date in the current locale so Hebrew users see Hebrew.
   // The server passed a snapshot, but we re-derive from `new Date()` for the locale.
   try {
-    const fmt = new Intl.DateTimeFormat(locale === "he" ? "he-IL" : "en-IL", {
-      weekday: "long",
-      month: "long",
-      day: "numeric",
-    });
-    return fmt.format(new Date());
+    return (locale === "he" ? TODAY_FORMAT_HE : TODAY_FORMAT_EN).format(new Date());
   } catch {
     return serverLabel;
   }
@@ -233,16 +243,14 @@ function HeroPhrase({
             : t("wordOnSchedule");
 
   const toneClass =
-    verdict === "overBudget" || verdict === "headsUp"
-      ? "text-[var(--status-over)]"
-      : "text-[var(--status-on-track)]";
+    verdict === "overBudget" || verdict === "headsUp" ? "text-status-over" : "text-status-on-track";
 
   const leadParts = lead.split(amount);
   const renderLead =
     leadParts.length === 2 ? (
       <>
         {leadParts[0]}
-        <span className="text-[var(--status-on-track)]">{amount}</span>
+        <span className="text-status-on-track">{amount}</span>
         {leadParts[1]}
       </>
     ) : (
@@ -308,7 +316,7 @@ function PaceGauge({
   const isOver = isOverBudget || delta >= 25;
   const isAhead = delta <= -10;
   const ringColor = isOver ? "var(--status-over)" : "var(--status-on-track)";
-  const verdictClass = isOver ? "text-[var(--status-over)]" : "text-[var(--status-on-track)]";
+  const verdictClass = isOver ? "text-status-over" : "text-status-on-track";
 
   let verdictText: string;
   if (!hasBudget) {

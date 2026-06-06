@@ -64,7 +64,7 @@ sandbox on.
 
 ## CSRF defense
 
-Next.js middleware (`src/middleware.ts`) rejects any mutating API
+Next.js proxy (`src/proxy.ts`) rejects any mutating API
 request (POST/PUT/PATCH/DELETE) whose `Origin` or `Referer` header
 doesn't match the app's own host. This prevents a malicious tab in
 your browser from triggering syncs / category changes against your
@@ -147,7 +147,7 @@ the server runs from login to logout (or from boot to shutdown). This
 changes how some surfaces look. The guarantees:
 
 **The server still binds only to `127.0.0.1`.** The `npm run start`
-script hardcodes `-H 127.0.0.1 -p 41234`, and every per-OS template
+script hardcodes `-H 127.0.0.1 -p 2412`, and every per-OS template
 (LaunchAgent plist, systemd unit, Task Scheduler XML) invokes it with
 those flags. The installer runs a post-install check and refuses to
 finish if it detects the server listening on a non-loopback address.
@@ -196,8 +196,8 @@ the server will fail loudly with the fix command.
 - A local attacker who can already run code as your user. They can read
   the DB and key file with or without the service running.
 - A malicious browser tab on your machine doing a CSRF against
-  `127.0.0.1:41234`. The same-origin middleware in
-  `src/middleware.ts` already blocks this on every mutating request,
+  `127.0.0.1:2412`. The same-origin proxy in
+  `src/proxy.ts` already blocks this on every mutating request,
   and that protection works the same whether the server runs on demand
   or always-on.
 

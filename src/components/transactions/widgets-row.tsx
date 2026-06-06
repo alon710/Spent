@@ -6,6 +6,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
 import { CategorizeReviewDialog } from "@/components/dashboard/categorize-review-dialog";
+import { CardLabel } from "@/components/ui/card-label";
 import type { Locale } from "@/i18n/routing";
 import type { CategorizePreview, TransactionsSummary } from "@/lib/api";
 import { previewCategorize } from "@/lib/api";
@@ -45,9 +46,7 @@ function TopMerchants({ merchants, loading }: TopMerchantsProps) {
   const locale = useLocale() as Locale;
   return (
     <div className="h-full rounded-2xl border border-border bg-card p-5">
-      <div className="text-xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
-        {t("topMerchants")}
-      </div>
+      <CardLabel>{t("topMerchants")}</CardLabel>
       <div className="mt-3 space-y-2">
         {loading ? (
           <div className="text-sm text-muted-foreground">{t("loadingShort")}</div>
@@ -106,9 +105,7 @@ function PendingReview({ count, loading }: PendingReviewProps) {
   if (!loading && count === 0) {
     return (
       <div className="rounded-2xl border border-border bg-card p-5">
-        <div className="text-xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
-          {t("pendingReview")}
-        </div>
+        <CardLabel>{t("pendingReview")}</CardLabel>
         <div className="mt-2 text-sm text-muted-foreground">{t("nothingFlagged")}</div>
       </div>
     );
@@ -118,9 +115,7 @@ function PendingReview({ count, loading }: PendingReviewProps) {
     <>
       <div className="rounded-2xl border border-border bg-card p-5">
         <div className="flex items-center justify-between">
-          <div className="text-xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
-            {t("pendingReview")}
-          </div>
+          <CardLabel>{t("pendingReview")}</CardLabel>
           <div
             className="flex h-7 w-7 items-center justify-center rounded-full"
             style={{
@@ -176,9 +171,7 @@ function Outliers({ largestIncome, largestExpense, loading }: OutliersProps) {
   const t = useTranslations("transactions");
   return (
     <div className="rounded-2xl border border-border bg-card p-5">
-      <div className="text-xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
-        {t("outliers")}
-      </div>
+      <CardLabel>{t("outliers")}</CardLabel>
       <div className="mt-3 space-y-3">
         <OutlierRow
           label={t("largestExpense")}

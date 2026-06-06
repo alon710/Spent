@@ -9,13 +9,15 @@ import { getWorkspaceIdFromRequest } from "@/server/lib/workspace-context";
 
 export const maxDuration = 60;
 
+const TODAY_FORMAT = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "Asia/Jerusalem",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
 function buildSystemPrompt(): string {
-  const today = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Jerusalem",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date());
+  const today = TODAY_FORMAT.format(new Date());
 
   return `You are Spent, a friendly assistant inside a personal finance app for an Israeli user. The user's transactions, categories, and summaries are private and live in a local SQLite database that you can query through the provided tools.
 

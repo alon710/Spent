@@ -31,22 +31,22 @@ function getState(): SchedulerState {
 const TZ = "Asia/Jerusalem";
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 
+const JERUSALEM_PARTS_FORMAT = new Intl.DateTimeFormat("en-US", {
+  timeZone: TZ,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  hour12: false,
+});
+
 function intlParts(d: Date) {
-  const fmt = new Intl.DateTimeFormat("en-US", {
-    timeZone: TZ,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
-  });
   const parts = Object.fromEntries(
-    fmt
-      .formatToParts(d)
-      .filter((p) => p.type !== "literal")
-      .map((p) => [p.type, p.value]),
+    JERUSALEM_PARTS_FORMAT.formatToParts(d).flatMap((p) =>
+      p.type === "literal" ? [] : [[p.type, p.value]],
+    ),
   );
   return {
     year: Number(parts.year),

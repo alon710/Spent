@@ -7,6 +7,7 @@ import { AINotConnectedBanner } from "@/components/ai-not-connected-banner";
 import { PeriodSelector } from "@/components/dashboard/period-selector";
 import { TransactionsTable } from "@/components/dashboard/transactions-table";
 import { PageHeader } from "@/components/layout/app-shell";
+import { QueryError } from "@/components/ui/query-error";
 import type { Locale } from "@/i18n/routing";
 import type { TransactionKindFilter } from "@/lib/api";
 import {
@@ -15,7 +16,7 @@ import {
   getTransactionsSummary,
   listIntegrations,
 } from "@/lib/api";
-import { addMonths, formatMonthLabel, getMonthRange } from "@/lib/formatters";
+import { addMonths, formatMonthLabel, getMonthRange, isCurrentMonth } from "@/lib/formatters";
 import { expandCategoryFilterIds } from "@/lib/transaction-filters";
 import { nextSortState, type SortOrder, type TransactionSortField } from "@/lib/transaction-sort";
 import { KpiCards } from "./kpi-cards";
@@ -23,6 +24,7 @@ import { WidgetsRow } from "./widgets-row";
 
 export function TransactionsPage() {
   const t = useTranslations("transactions");
+  const tc = useTranslations("common");
   const locale = useLocale() as Locale;
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [search, setSearch] = useState("");
@@ -109,6 +111,9 @@ export function TransactionsPage() {
             label={monthLabel}
             onPrev={() => setSelectedDate((d) => addMonths(d, -1))}
             onNext={() => setSelectedDate((d) => addMonths(d, 1))}
+            prevLabel={tc("previousMonth")}
+            nextLabel={tc("nextMonth")}
+            nextDisabled={isCurrentMonth(selectedDate)}
           />
         }
       />
@@ -143,36 +148,40 @@ export function TransactionsPage() {
           })}
         </div>
 
-        <TransactionsTable
-          transactions={transactionsQuery.data?.transactions ?? []}
-          total={transactionsQuery.data?.total ?? 0}
-          categories={categoriesQuery.data ?? []}
-          integrations={integrationsQuery.data ?? []}
-          loading={tableInitialLoading}
-          isFetching={transactionsQuery.isFetching}
-          sortField={sortField}
-          sortOrder={sortOrder}
-          onSortChange={(field) => {
-            const next = nextSortState(sortField, sortOrder, field);
-            setSortField(next.field);
-            setSortOrder(next.order);
-            setPage(0);
-          }}
-          search={search}
-          onSearchChange={setSearch}
-          categoryFilter={categoryFilter}
-          onCategoryFilterChange={(ids) => {
-            setCategoryFilter(ids);
-            setPage(0);
-          }}
-          accountFilter={accountFilter}
-          onAccountFilterChange={(ids) => {
-            setAccountFilter(ids);
-            setPage(0);
-          }}
-          page={page}
-          onPageChange={setPage}
-        />
+        {transactionsQuery.isError && !transactionsQuery.data ? (
+          <QueryError onRetry={() => transactionsQuery.refetch()} />
+        ) : (
+          <TransactionsTable
+            transactions={transactionsQuery.data?.transactions ?? []}
+            total={transactionsQuery.data?.total ?? 0}
+            categories={categoriesQuery.data ?? []}
+            integrations={integrationsQuery.data ?? []}
+            loading={tableInitialLoading}
+            isFetching={transactionsQuery.isFetching}
+            sortField={sortField}
+            sortOrder={sortOrder}
+            onSortChange={(field) => {
+              const next = nextSortState(sortField, sortOrder, field);
+              setSortField(next.field);
+              setSortOrder(next.order);
+              setPage(0);
+            }}
+            search={search}
+            onSearchChange={setSearch}
+            categoryFilter={categoryFilter}
+            onCategoryFilterChange={(ids) => {
+              setCategoryFilter(ids);
+              setPage(0);
+            }}
+            accountFilter={accountFilter}
+            onAccountFilterChange={(ids) => {
+              setAccountFilter(ids);
+              setPage(0);
+            }}
+            page={page}
+            onPageChange={setPage}
+          />
+        )}
       </div>
     </>
   );

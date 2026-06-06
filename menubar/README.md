@@ -2,7 +2,7 @@
 
 Tiny native controller for the always-on Spent server. Shows status in the menu bar (macOS) or notification area (Windows), with one-click Open dashboard / Sync now / Start–Stop service / Quit.
 
-Both apps poll `http://127.0.0.1:41234/api/health` every 5 seconds and dim the icon when the server is unreachable. The browser action opens `http://spent.localhost:41234`.
+Both apps poll `http://127.0.0.1:2412/api/health` every 5 seconds and dim the icon when the server is unreachable. The browser action opens `http://spent.localhost:2412`.
 
 ## macOS
 
@@ -34,5 +34,5 @@ Requires .NET 8 SDK (`winget install Microsoft.DotNet.SDK.8`). Builds a self-con
 ## What both apps assume
 
 - The Spent server is already installed as a background service via `bun run service:install` (LaunchAgent on Mac, scheduled task on Windows).
-- The service binds to `127.0.0.1:41234`. The tray apps will not connect to any other host.
+- The service binds to `127.0.0.1:2412`. The tray apps will not connect to any other host.
 - Start/Stop calls go to `launchctl bootstrap|bootout com.spent.app` (Mac) or `schtasks /Run|/End /TN Spent` (Windows).

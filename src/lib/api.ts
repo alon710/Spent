@@ -10,7 +10,6 @@ import type {
   HomePayload,
   Integration,
   SetupStatus,
-  SyncRun,
   TransactionWithCategory,
   Workspace,
 } from "./types";
@@ -501,6 +500,44 @@ export interface SyncProgressEvent {
   data: Record<string, unknown>;
 }
 
+/**
+ * Reads a server-sent event stream, invoking `onMessage` for each
+ * `event:`/`data:` pair. Malformed JSON payloads are skipped.
+ */
+async function readSSE(
+  res: Response,
+  onMessage: (event: string, data: unknown) => void,
+): Promise<void> {
+  const reader = res.body?.getReader();
+  if (!reader) return;
+
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let currentEvent = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() ?? "";
+
+    for (const line of lines) {
+      if (line.startsWith("event: ")) {
+        currentEvent = line.slice(7).trim();
+      } else if (line.startsWith("data: ") && currentEvent) {
+        try {
+          onMessage(currentEvent, JSON.parse(line.slice(6)));
+        } catch {
+          // skip malformed JSON
+        }
+        currentEvent = "";
+      }
+    }
+  }
+}
+
 export function startSync(
   credentialId: number | undefined,
   onEvent: (event: SyncProgressEvent) => void,
@@ -518,36 +555,12 @@ export function startSync(
           signal: controller.signal,
         }),
       );
-
-      const reader = res.body?.getReader();
-      if (!reader) return;
-
-      const decoder = new TextDecoder();
-      let buffer = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() ?? "";
-
-        let currentEvent = "";
-        for (const line of lines) {
-          if (line.startsWith("event: ")) {
-            currentEvent = line.slice(7).trim();
-          } else if (line.startsWith("data: ") && currentEvent) {
-            try {
-              const data = JSON.parse(line.slice(6));
-              onEvent({ type: currentEvent as SyncProgressEvent["type"], data });
-            } catch {
-              // skip malformed JSON
-            }
-            currentEvent = "";
-          }
-        }
-      }
+      await readSSE(res, (event, data) =>
+        onEvent({
+          type: event as SyncProgressEvent["type"],
+          data: data as Record<string, unknown>,
+        }),
+      );
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") return;
       onEvent({
@@ -558,11 +571,6 @@ export function startSync(
   })();
 
   return { cancel: () => controller.abort() };
-}
-
-// Placeholder for last sync info
-export function getLastSync() {
-  return fetchJSON<SyncRun | null>("/api/sync/last").catch(() => null);
 }
 
 export interface PullProgress {
@@ -602,36 +610,12 @@ export function pullOllamaModel(
           signal: controller.signal,
         }),
       );
-
-      const reader = res.body?.getReader();
-      if (!reader) return;
-
-      const decoder = new TextDecoder();
-      let buffer = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() ?? "";
-
-        let currentEvent = "";
-        for (const line of lines) {
-          if (line.startsWith("event: ")) {
-            currentEvent = line.slice(7).trim();
-          } else if (line.startsWith("data: ") && currentEvent) {
-            try {
-              const data = JSON.parse(line.slice(6));
-              onEvent({ type: currentEvent as PullEvent["type"], data });
-            } catch {
-              // skip
-            }
-            currentEvent = "";
-          }
-        }
-      }
+      await readSSE(res, (event, data) =>
+        onEvent({
+          type: event as PullEvent["type"],
+          data: data as PullProgress & { message?: string },
+        }),
+      );
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") return;
       onEvent({

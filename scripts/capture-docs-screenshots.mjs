@@ -22,7 +22,7 @@ const REPO_ROOT = path.resolve(HERE, "..");
 const OUT_DIR = path.join(REPO_ROOT, "website/src/assets/screenshots");
 
 const VIEWPORT = { width: 1600, height: 1100, deviceScaleFactor: 2 };
-const PORT = 4399; // separate from prod 41234 and dev 3000
+const PORT = 4399; // separate from prod 2412 and dev 3000
 
 const SCREENS = [
   { name: "home-light.png", path: "/", theme: "light" },

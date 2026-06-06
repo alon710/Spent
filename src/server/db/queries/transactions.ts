@@ -8,6 +8,7 @@ import type {
   TransactionWithCategory,
 } from "@/lib/types";
 import { computeDedupHash } from "../../lib/dedup";
+import type { TransferCandidate } from "../../lib/internal-transfers";
 import { detectKind } from "../../lib/transfers";
 import { getDb } from "../index";
 export type TransactionKindFilter = "expense" | "income" | "all";
@@ -278,6 +279,64 @@ export function getUncategorizedIdsByKind(
     )
     .all(workspaceId, kind) as { id: number }[];
   return rows.map((r) => r.id);
+}
+
+// Candidate rows for internal-transfer pairing. Bounded to the sync window
+// (`from`) for performance; `findInternalTransferPairs` does the actual matching.
+export function getInternalTransferCandidates(
+  workspaceId: number,
+  from: string,
+): TransferCandidate[] {
+  return getDb()
+    .prepare(
+      `SELECT id, credential_id as credentialId, account_number as accountNumber,
+              date, charged_amount as chargedAmount, charged_currency as chargedCurrency,
+              description, kind
+       FROM transactions
+       WHERE workspace_id = ? AND kind != 'transfer' AND date >= ?
+       ORDER BY date DESC`,
+    )
+    .all(workspaceId, from) as TransferCandidate[];
+}
+
+export function markTransfersByIds(workspaceId: number, ids: number[]): void {
+  if (ids.length === 0) return;
+  const placeholders = ids.map(() => "?").join(",");
+  getDb()
+    .prepare(
+      `UPDATE transactions
+       SET kind = 'transfer', updated_at = datetime('now')
+       WHERE workspace_id = ? AND id IN (${placeholders})`,
+    )
+    .run(workspaceId, ...ids);
+}
+
+// Expense rows in the sync window, for the "treat ATM as transfers" path. The
+// final ATM keyword filter happens in JS (via isAtmWithdrawal) so the regex set
+// stays single-sourced in transfers.ts.
+export function getAtmExpenseCandidates(
+  workspaceId: number,
+  from: string,
+): { id: number; description: string }[] {
+  return getDb()
+    .prepare(
+      `SELECT id, description FROM transactions
+       WHERE workspace_id = ? AND kind = 'expense' AND date >= ?`,
+    )
+    .all(workspaceId, from) as { id: number; description: string }[];
+}
+
+// Uncategorized expense rows, for deterministic "Cash & ATM" filing. Limiting
+// to category_id IS NULL keeps it forward-looking and never re-touches history.
+export function getUncategorizedAtmExpenses(
+  workspaceId: number,
+): { id: number; description: string }[] {
+  return getDb()
+    .prepare(
+      `SELECT id, description FROM transactions
+       WHERE workspace_id = ? AND kind = 'expense' AND category_id IS NULL`,
+    )
+    .all(workspaceId) as { id: number; description: string }[];
 }
 
 export function getTransactionsForCategorization(

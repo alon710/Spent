@@ -9,8 +9,6 @@ import {
   Star,
   Wallet,
 } from "lucide-react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
   Sidebar,
@@ -22,9 +20,12 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarRail,
   SidebarSeparator,
 } from "@/components/ui/sidebar";
+import { Link, usePathname } from "@/i18n/navigation";
 import { getSettings } from "@/lib/api";
+import { GITHUB_REPO_URL } from "@/lib/constants";
 import { WorkspaceSwitcher } from "./workspace-switcher";
 
 interface NavDef {
@@ -128,16 +129,17 @@ export function AppSidebar() {
                     </SidebarMenuItem>
                   );
                 }
+                const active = item.match(pathname);
                 return (
                   <SidebarMenuItem key={item.href}>
                     <SidebarMenuButton
                       render={
-                        <Link href={item.href}>
+                        <Link href={item.href} aria-current={active ? "page" : undefined}>
                           <item.Icon />
                           <span>{label}</span>
                         </Link>
                       }
-                      isActive={item.match(pathname)}
+                      isActive={active}
                       tooltip={tooltip}
                     />
                   </SidebarMenuItem>
@@ -154,16 +156,17 @@ export function AppSidebar() {
             <SidebarMenu>
               {FOOTER_NAV.map((item) => {
                 const label = t(item.labelKey);
+                const active = item.match(pathname);
                 return (
                   <SidebarMenuItem key={item.href}>
                     <SidebarMenuButton
                       render={
-                        <Link href={item.href}>
+                        <Link href={item.href} aria-current={active ? "page" : undefined}>
                           <item.Icon />
                           <span>{label}</span>
                         </Link>
                       }
-                      isActive={item.match(pathname)}
+                      isActive={active}
                       tooltip={label}
                     />
                   </SidebarMenuItem>
@@ -179,7 +182,7 @@ export function AppSidebar() {
           <SidebarMenuItem>
             <SidebarMenuButton
               render={
-                <a href="https://github.com/alon710/Spent" target="_blank" rel="noreferrer">
+                <a href={GITHUB_REPO_URL} target="_blank" rel="noreferrer">
                   <Star />
                   <span>{t("starOnGitHub")}</span>
                 </a>
@@ -189,6 +192,8 @@ export function AppSidebar() {
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
+
+      <SidebarRail />
     </Sidebar>
   );
 }

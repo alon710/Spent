@@ -1,7 +1,8 @@
 "use client";
 
-import Link from "next/link";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { Link } from "@/i18n/navigation";
+import type { Locale } from "@/i18n/routing";
 import { formatCurrency, formatDate } from "@/lib/formatters";
 import { translateCategoryName } from "@/lib/i18n-data";
 import type { HomeRecentTransaction } from "@/lib/types";
@@ -14,6 +15,7 @@ interface Props {
 export function RecentTransactionsCard({ items }: Props) {
   const t = useTranslations("home");
   const tCat = useTranslations("categoriesSeeded");
+  const locale = useLocale() as Locale;
   if (items.length === 0) {
     return (
       <CardShell label={t("recentActivity")}>
@@ -54,11 +56,11 @@ export function RecentTransactionsCard({ items }: Props) {
               </div>
               <span
                 className={`shrink-0 text-sm tabular-nums ${
-                  txn.kind === "income" ? "text-[var(--status-on-track)]" : "text-foreground"
+                  txn.kind === "income" ? "text-status-on-track" : "text-foreground"
                 }`}
               >
                 {txn.kind === "income" ? "+" : "−"}
-                {formatCurrency(txn.chargedAmount)}
+                {formatCurrency(txn.chargedAmount, txn.chargedCurrency ?? "ILS", locale)}
               </span>
             </Link>
           </li>

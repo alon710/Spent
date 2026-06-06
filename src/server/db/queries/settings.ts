@@ -59,7 +59,6 @@ export function getAppSettings(workspaceId: number): AppSettings {
   const targetRaw = getWorkspaceSetting(workspaceId, "monthly_target");
   const target = targetRaw != null ? Number(targetRaw) : NaN;
   const storedTime = getGlobalSetting("auto_sync_time");
-  const storedLang = getGlobalSetting("language");
   return {
     monthsToSync: Number(getWorkspaceSetting(workspaceId, "months_to_sync") ?? "3"),
     aiProvider: (getGlobalSetting("ai_provider") ?? "none") as AppSettings["aiProvider"],
@@ -71,7 +70,7 @@ export function getAppSettings(workspaceId: number): AppSettings {
     monthlyTarget: Number.isFinite(target) && target > 0 ? target : null,
     autoSyncEnabled: getGlobalSetting("auto_sync_enabled") === "true",
     autoSyncTime: storedTime && AUTO_SYNC_TIME_RE.test(storedTime) ? storedTime : "06:00",
-    language: storedLang === "he" ? "he" : "en",
+    treatAtmAsTransfers: getGlobalSetting("treat_atm_as_transfers") === "true",
   };
 }
 
@@ -126,11 +125,8 @@ export function updateAppSettings(
       }
       setGlobalSetting("auto_sync_time", settings.autoSyncTime);
     }
-    if (settings.language !== undefined) {
-      if (settings.language !== "en" && settings.language !== "he") {
-        throw new Error("language must be 'en' or 'he'");
-      }
-      setGlobalSetting("language", settings.language);
+    if (settings.treatAtmAsTransfers !== undefined) {
+      setGlobalSetting("treat_atm_as_transfers", settings.treatAtmAsTransfers ? "true" : "false");
     }
   });
   update();

@@ -12,10 +12,10 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "from and to are required" }, { status: 400 });
   }
 
-  const credentialIds = searchParams
-    .getAll("credentialIds")
-    .map((v) => Number(v))
-    .filter((n) => Number.isFinite(n) && n > 0);
+  const credentialIds = searchParams.getAll("credentialIds").flatMap((v) => {
+    const n = Number(v);
+    return Number.isFinite(n) && n > 0 ? [n] : [];
+  });
 
   return NextResponse.json(
     getTransactionsSummary(workspaceId, from, to, {

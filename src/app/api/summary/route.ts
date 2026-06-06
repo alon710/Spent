@@ -20,7 +20,6 @@ import {
   daysUntil,
   dayWithinMonth,
   nextPayday,
-  pacePhrase,
 } from "@/server/lib/pace";
 import { getWorkspaceIdFromRequest } from "@/server/lib/workspace-context";
 
@@ -158,9 +157,10 @@ export async function GET(request: Request) {
 
   // Build leaf rows for all non-parent categories. Parent rows do NOT
   // appear as leaves - they only appear as synthetic rollup rows.
-  const leafRows: CategoryWithData[] = categories
-    .filter((c) => !parentIdSet.has(c.id))
-    .map(leafRow);
+  const leafRows: CategoryWithData[] = [];
+  for (const c of categories) {
+    if (!parentIdSet.has(c.id)) leafRows.push(leafRow(c));
+  }
   const leafById = new Map(leafRows.map((r) => [r.categoryId, r]));
 
   // Build a parent rollup row per parent category. Aggregates over its
@@ -258,13 +258,6 @@ export async function GET(request: Request) {
   const typicalMonthly = typicalSum > 0 ? Math.round(typicalSum / 100) * 100 : null;
 
   const overallPercentSpent = totalBudget > 0 ? (periodTotal / totalBudget) * 100 : 0;
-  const phrase = pacePhrase(
-    periodTotal,
-    budgetedSpent,
-    totalBudget,
-    timeElapsedPercent,
-    monthLabel,
-  );
 
   // Format the date for hero header (e.g., "Tuesday, May 19")
   const todayLabel = today.toLocaleDateString("en-US", {
@@ -289,7 +282,6 @@ export async function GET(request: Request) {
     paydayDay,
     todayLabel,
     monthLabel,
-    pacePhrase: phrase,
     typicalMonthly,
   });
 }

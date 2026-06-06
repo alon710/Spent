@@ -1,8 +1,8 @@
 import { Sparkles } from "lucide-react";
-import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { PageHeader } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
+import { Link } from "@/i18n/navigation";
 
 export async function ChatDisabled() {
   const t = await getTranslations("chat");
@@ -18,7 +18,7 @@ export async function ChatDisabled() {
             <h2 className="font-serif text-2xl tracking-tight">{t("disabledTitle")}</h2>
             <p className="text-sm text-muted-foreground">{t("disabledBody")}</p>
           </div>
-          <Button variant="default" render={<Link href="/settings">{t("disabledCta")}</Link>} />
+          <Button variant="default" render={<Link href="/settings/ai">{t("disabledCta")}</Link>} />
         </div>
       </div>
     </>

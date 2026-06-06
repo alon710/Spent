@@ -1,13 +1,14 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AINotConnectedBanner } from "@/components/ai-not-connected-banner";
 import { CategorizeButton } from "@/components/dashboard/categorize-button";
 import { SyncButton } from "@/components/dashboard/sync-button";
 import { PageHeader } from "@/components/layout/app-shell";
+import { useRouter } from "@/i18n/navigation";
 import { getActivity, getHome } from "@/lib/api";
 import type { HomePayload, HomeSection } from "@/lib/types";
 import { BankHealthCard } from "./bank-health-card";
@@ -53,7 +54,7 @@ export function HomePage() {
     }
   }, [autoStartSync, router]);
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["home"],
     queryFn: getHome,
   });
@@ -109,14 +110,62 @@ export function HomePage() {
         <SyncFailureBanner items={data?.bankHealth ?? null} className="mb-4 md:mb-5 lg:mb-6" />
         <AINotConnectedBanner className="mb-4 md:mb-5 lg:mb-6" />
         <div className="grid grid-cols-12 gap-4 md:gap-5 lg:gap-6">
-          {renderSection("thisMonth", data, isLoading, isError, ROW_1, skeletonLabels)}
-          {renderSection("cashFlow", data, isLoading, isError, ROW_1_SIDE, skeletonLabels)}
-          {renderSection("categorySnapshot", data, isLoading, isError, ROW_2, skeletonLabels)}
-          {renderSection("historicalTrend", data, isLoading, isError, ROW_2_SIDE, skeletonLabels)}
-          {renderSection("recentTransactions", data, isLoading, isError, ROW_2, skeletonLabels)}
-          {renderSection("topMerchants", data, isLoading, isError, ROW_2_SIDE, skeletonLabels)}
-          {renderSection("needsAttention", data, isLoading, isError, ROW_2, skeletonLabels)}
-          {renderSection("bankHealth", data, isLoading, isError, ROW_2_SIDE, skeletonLabels)}
+          {renderSection("thisMonth", data, isLoading, isError, ROW_1, skeletonLabels, refetch)}
+          {renderSection("cashFlow", data, isLoading, isError, ROW_1_SIDE, skeletonLabels, refetch)}
+          {renderSection(
+            "categorySnapshot",
+            data,
+            isLoading,
+            isError,
+            ROW_2,
+            skeletonLabels,
+            refetch,
+          )}
+          {renderSection(
+            "historicalTrend",
+            data,
+            isLoading,
+            isError,
+            ROW_2_SIDE,
+            skeletonLabels,
+            refetch,
+          )}
+          {renderSection(
+            "recentTransactions",
+            data,
+            isLoading,
+            isError,
+            ROW_2,
+            skeletonLabels,
+            refetch,
+          )}
+          {renderSection(
+            "topMerchants",
+            data,
+            isLoading,
+            isError,
+            ROW_2_SIDE,
+            skeletonLabels,
+            refetch,
+          )}
+          {renderSection(
+            "needsAttention",
+            data,
+            isLoading,
+            isError,
+            ROW_2,
+            skeletonLabels,
+            refetch,
+          )}
+          {renderSection(
+            "bankHealth",
+            data,
+            isLoading,
+            isError,
+            ROW_2_SIDE,
+            skeletonLabels,
+            refetch,
+          )}
         </div>
       </div>
     </>
@@ -130,6 +179,7 @@ function renderSection(
   isError: boolean,
   spanClass: string,
   skeletonLabels: Record<HomeSection, string>,
+  onRetry: () => void,
 ) {
   if (isLoading || !data) {
     return (
@@ -144,7 +194,7 @@ function renderSection(
   if (sectionHasError) {
     return (
       <div key={section} className={spanClass}>
-        <CardError label={skeletonLabels[section]} />
+        <CardError label={skeletonLabels[section]} onRetry={onRetry} />
       </div>
     );
   }

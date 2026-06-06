@@ -5,10 +5,10 @@ namespace Spent;
 // the friendly hostname; that's not subject to this app's HTTP client.
 internal static class Constants
 {
-    public const string OpenInBrowserUrl = "http://spent.localhost:41234";
-    public const string HealthUrl = "http://127.0.0.1:41234/api/health";
-    public const string SyncUrl = "http://127.0.0.1:41234/api/sync";
-    public const string SameOrigin = "http://127.0.0.1:41234";
+    public const string OpenInBrowserUrl = "http://spent.localhost:2412";
+    public const string HealthUrl = "http://127.0.0.1:2412/api/health";
+    public const string SyncUrl = "http://127.0.0.1:2412/api/sync";
+    public const string SameOrigin = "http://127.0.0.1:2412";
     public const string TaskName = "Spent";
     public const int PopupWidth = 264;
 }
