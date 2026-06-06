@@ -8,7 +8,7 @@ import type {
   TransactionWithCategory,
 } from "@/lib/types";
 import { computeDedupHash } from "../../lib/dedup";
-import type { TransferCandidate } from "../../lib/internal-transfers";
+import type { MatchCandidate } from "../../lib/matching";
 import { detectKind } from "../../lib/transfers";
 import { getDb } from "../index";
 export type TransactionKindFilter = "expense" | "income" | "all";
@@ -281,49 +281,21 @@ export function getUncategorizedIdsByKind(
   return rows.map((r) => r.id);
 }
 
-// Candidate rows for internal-transfer pairing. Bounded to the sync window
-// (`from`) for performance; `findInternalTransferPairs` does the actual matching.
-export function getInternalTransferCandidates(
-  workspaceId: number,
-  from: string,
-): TransferCandidate[] {
+// Ungrouped candidate rows for the matching engine, bounded to the sync window
+// (`from`) for performance. Includes every kind (the engine needs kind='transfer'
+// rows to wrap bank-side card payments) but excludes rows already in an event so
+// re-matching is idempotent. See src/server/lib/matching.ts.
+export function getMatchCandidates(workspaceId: number, from: string): MatchCandidate[] {
   return getDb()
     .prepare(
-      `SELECT id, credential_id as credentialId, account_number as accountNumber,
+      `SELECT id, credential_id as credentialId, account_number as accountNumber, provider,
               date, charged_amount as chargedAmount, charged_currency as chargedCurrency,
-              description, kind
+              description, kind, dedup_hash as dedupHash, dedup_sequence as dedupSequence
        FROM transactions
-       WHERE workspace_id = ? AND kind != 'transfer' AND date >= ?
+       WHERE workspace_id = ? AND date >= ? AND event_id IS NULL
        ORDER BY date DESC`,
     )
-    .all(workspaceId, from) as TransferCandidate[];
-}
-
-export function markTransfersByIds(workspaceId: number, ids: number[]): void {
-  if (ids.length === 0) return;
-  const placeholders = ids.map(() => "?").join(",");
-  getDb()
-    .prepare(
-      `UPDATE transactions
-       SET kind = 'transfer', updated_at = datetime('now')
-       WHERE workspace_id = ? AND id IN (${placeholders})`,
-    )
-    .run(workspaceId, ...ids);
-}
-
-// Expense rows in the sync window, for the "treat ATM as transfers" path. The
-// final ATM keyword filter happens in JS (via isAtmWithdrawal) so the regex set
-// stays single-sourced in transfers.ts.
-export function getAtmExpenseCandidates(
-  workspaceId: number,
-  from: string,
-): { id: number; description: string }[] {
-  return getDb()
-    .prepare(
-      `SELECT id, description FROM transactions
-       WHERE workspace_id = ? AND kind = 'expense' AND date >= ?`,
-    )
-    .all(workspaceId, from) as { id: number; description: string }[];
+    .all(workspaceId, from) as MatchCandidate[];
 }
 
 // Uncategorized expense rows, for deterministic "Cash & ATM" filing. Limiting
@@ -616,6 +588,9 @@ interface TransactionRow {
   kind: string;
   needs_review: number;
   is_excluded: number;
+  event_id: number | null;
+  event_role: string | null;
+  match_confidence: number | null;
   created_at: string;
   updated_at: string;
   category_name?: string | null;
@@ -651,6 +626,9 @@ function mapTransactionRow(row: unknown): TransactionWithCategory {
     kind: r.kind as "expense" | "income" | "transfer",
     needsReview: r.needs_review === 1,
     isExcluded: r.is_excluded === 1,
+    eventId: r.event_id ?? null,
+    eventRole: (r.event_role as TransactionWithCategory["eventRole"]) ?? null,
+    matchConfidence: r.match_confidence ?? null,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
     categoryName: r.category_name ?? null,

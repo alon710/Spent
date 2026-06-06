@@ -69,6 +69,11 @@ function matchesTransferPattern(description: string): boolean {
   return matchesAny(description, CREDIT_CARD_PAYMENT_PATTERNS);
 }
 
+/** True when a description looks like a bank-side credit card bill payment. */
+export function matchesCreditCardPayment(description: string): boolean {
+  return matchesAny(description, CREDIT_CARD_PAYMENT_PATTERNS);
+}
+
 export function matchesInternalTransfer(description: string): boolean {
   return matchesAny(description, INTERNAL_TRANSFER_PATTERNS);
 }

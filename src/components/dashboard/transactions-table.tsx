@@ -3,6 +3,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowDownRight,
+  ArrowLeftRight,
   ArrowUpRight,
   Check,
   HelpCircle,
@@ -451,6 +452,18 @@ export function TransactionsTable({
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <div className="font-medium">{txn.description}</div>
+                          {txn.eventId != null && txn.eventRole != null && (
+                            <span
+                              className="inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground"
+                              style={{ backgroundColor: "var(--muted)" }}
+                              title={t("eventBadgeTooltip")}
+                            >
+                              <ArrowLeftRight className="h-3 w-3" />
+                              {txn.eventRole === "bill_payment"
+                                ? t("eventCardPayment")
+                                : t("eventTransfer")}
+                            </span>
+                          )}
                           {txn.needsReview && (
                             <span
                               className="inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-medium"
