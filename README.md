@@ -79,8 +79,8 @@ Polished buttercream-and-sage palette in light mode, warm charcoal in dark. Syst
 </td>
 <td valign="top">
 
-### 🍎 Menu bar / tray app
-Native companion in your menu bar (macOS) or notification area (Windows). Status indicator, one-click open dashboard, sync, and start/stop/restart the service.
+### 🔒 Runs entirely on your machine
+No cloud, no account, no telemetry. The server binds to loopback only and your data never leaves `data/`.
 
 ### 💬 Chat with your spending
 A built-in AI chat agent at `/chat` answers questions about your transactions, budgets, and categories. Uses the same provider you picked for categorization.
@@ -160,7 +160,7 @@ flowchart LR
     Scraper["Puppeteer scraper<br/>(israeli-bank-scrapers)"]
     DB[("📦 SQLite<br/>data/spent.db<br/>(WAL mode)")]
     AI{"🤖 AI provider<br/>Claude · Gemini · Ollama · None"}
-    UI["🖥 Dashboard<br/>http://spent.localhost:2412"]
+    UI["🖥 Dashboard<br/>http://127.0.0.1:2412"]
 
     Bank -->|HTTPS<br/>credentials encrypted| Scraper
     Scraper -->|new transactions| DB
@@ -220,31 +220,25 @@ You can change providers any time from **Settings → AI provider**. Existing ca
 ## Requirements
 
 - **[Bun 1.3+](https://bun.com)** (used as the package manager and script runner)
-- **Node.js 22+** (still the runtime for the always-on service via `next start`)
-- **macOS 13+**, **Ubuntu 22+** (with systemd), or **Windows 11**
-- **Build tools for the menubar** (only if you want the tray; `bun run setup` will offer to install these for you if they're missing):
-  - macOS: Xcode Command Line Tools (`xcode-select --install`)
-  - Windows: .NET 8 SDK (`winget install Microsoft.DotNet.SDK.8`)
+- **Node.js 22+** (the runtime for the production server via `next start`)
+- **macOS 13+**, **Ubuntu 22+**, or **Windows 11**
 - A bank account with **2FA disabled** (most Israeli banks require this for automation — OneZero is the exception)
 
 ## Install
-
-> Prefer a screenshot-by-screenshot walkthrough? The [step-by-step install guides](https://shaya16.github.io/Spent/getting-started/) on the docs site cover macOS and Windows separately, with build-tool setup and tray-app gotchas spelled out.
 
 ```bash
 git clone https://github.com/alon710/Spent.git
 cd spent
 bun install
-bun run setup
+bun run build
+bun start
 ```
 
-`bun run setup` does everything: builds the Next.js app, installs the always-on service (LaunchAgent on macOS / systemd on Linux / Task Scheduler on Windows), builds the platform menubar from source, installs it to the standard location, registers it to auto-start at login, and opens the dashboard. On Windows it also writes a `127.0.0.1 spent.localhost` line to your hosts file (the only step that asks for Administrator). macOS and Linux resolve `*.localhost` natively, so setup runs sudo-free there.
+`bun start` runs the production server bound to `127.0.0.1:2412` — loopback only, so it is never reachable from your LAN or the internet. Leave the process running (or wrap it in your own service manager / `tmux` / login item) for an always-on dashboard.
 
-On Linux there is no native menubar. `bun run setup` installs the service and opens the browser. Control the service with `bun run service:*` (see below).
+Open **`http://127.0.0.1:2412`** and bookmark it.
 
-First launch of the menubar on macOS/Windows shows an unsigned-binary warning (Gatekeeper / SmartScreen). That's expected: you built it locally and didn't pay for a code-signing certificate. Right-click → Open (macOS) or "More info" → "Run anyway" (Windows). One-time.
-
-Open **`http://spent.localhost:2412`** and bookmark it.
+To hack on the app with hot reload instead, run `bun dev` and open `http://127.0.0.1:3000`.
 
 ## First-time setup
 
@@ -260,50 +254,18 @@ In the browser:
 
 | What you want | Run |
 |---|---|
-| Just use the app (no coding) | Open `http://spent.localhost:2412` |
+| Just use the app | `bun start` → `http://127.0.0.1:2412` |
 | Code and see changes instantly | `bun dev` → `http://127.0.0.1:3000` |
-| Update the always-on app after editing | `bun run service:reload` |
+| Rebuild after editing | `bun run build` then restart `bun start` |
 | Run the full CI gate locally before pushing | `bun run ci` |
-
-Rare cases:
-
-- Changed the menu bar app source → `bun run menubar:install:mac` (or `:windows`) to rebuild and reinstall.
-- Changed install scripts or hostname → `bun run service:uninstall && bun run service:install`.
-
-## Service commands
-
-| Command | What it does |
-|---|---|
-| `bun run service:status` | Running? Bound to loopback? |
-| `bun run service:start` / `:stop` | Start/stop now |
-| `bun run service:reload` | Rebuild and restart |
-| `bun run service:logs` | Tail server logs |
-| `bun run service:open` | Open the app in your browser |
-| `bun run service:uninstall` | Remove auto-start and hosts entry. `data/` is untouched. |
 
 ## Uninstall
 
-```bash
-bun run uninstall
-```
+Spent installs nothing outside the project folder. To remove it:
 
-Reverses everything `bun run setup` installed:
-
-- Stops the background service and removes the LaunchAgent / Task Scheduler entry / systemd unit.
-- Windows: removes the `127.0.0.1 spent.localhost` line from your hosts file (asks for Administrator). macOS/Linux don't have a hosts entry to remove unless you're upgrading from an older install — in that case the legacy `spent.local` line is cleaned up automatically.
-- Quits the menubar, removes the installed app, and removes it from Login Items / Startup.
-
-**Kept on purpose:**
-
-- `data/`: your transactions, budgets, and encryption key. To wipe your data: `rm -rf data/`.
-- The repo itself. To remove Spent entirely: `rm -rf data/ && cd .. && rm -rf spent/`.
-
-If you only want to remove the menubar but keep the always-on web app:
-
-- **macOS**: `rm -rf ~/Applications/Spent.app` and remove "Spent" from System Settings → General → Login Items.
-- **Windows**: delete `%LOCALAPPDATA%\Programs\Spent\` and remove `Spent.lnk` from `shell:startup`.
-
-If you only want to remove the always-on service but keep the menubar (so it's there if you reinstall later): `bun run service:uninstall`.
+- Stop the running `bun start` (or `bun dev`) process.
+- `rm -rf data/` to wipe your transactions, budgets, and encryption key.
+- Delete the repository to remove Spent entirely: `cd .. && rm -rf spent/`.
 
 ## Security at a glance
 
@@ -324,9 +286,8 @@ Full threat model and responsible-disclosure policy → [SECURITY.md](SECURITY.m
 
 - `data/spent.db` — transactions, categories, budgets, settings
 - `data/.encryption-key` — 32-byte AES key, mode `0600`
-- `~/Library/Logs/Spent/` (macOS) / `~/.local/state/spent/log/` (Linux) — service logs
 
-Back up `data/` like any other folder. To migrate to a new machine, copy `data/` over and run `npm run service:install`.
+Back up `data/` like any other folder. To migrate to a new machine, copy `data/` over and start the app there.
 
 ## Architecture & code map
 
@@ -347,13 +308,9 @@ spent/
 │       ├── db/               SQLite singleton, migrations, query helpers
 │       ├── lib/              Encryption, dedup, transfer detection, pace
 │       └── scrapers/         Wrapper around israeli-bank-scrapers
-├── menubar/                  Tray companions (built locally by `bun run setup`)
-│   ├── mac/                  Swift MenuBarExtra app
-│   └── windows/              C# WinForms NotifyIcon app
-├── scripts/service/          LaunchAgent / systemd / Task Scheduler installer
+├── scripts/                  Dev utilities + the i18n / changed-file-lint CI helpers
 ├── website/                  Astro + Starlight docs site (auto-deploys to GitHub Pages)
-├── .github/workflows/        CI — docs site deploy
-├── Spent.sln                 Visual Studio solution for the Windows menubar project
+├── .github/workflows/        CI gate + docs site deploy
 └── data/                     SQLite + encryption key (gitignored)
 ```
 
@@ -361,10 +318,7 @@ spent/
 
 > The [Troubleshooting docs](https://shaya16.github.io/Spent/troubleshooting/) cover Defender, Gatekeeper, Cloudflare bot challenges, and bank-specific quirks in more depth.
 
-- **Port 2412 in use** → `lsof -nP -iTCP:2412 -sTCP:LISTEN` (Unix) or `netstat -ano | findstr :2412` (Windows). Kill the offender and re-run install.
-- **Gatekeeper blocks `Spent.app`** → right-click → Open → Open. One-time.
-- **Linux: "systemd user instance not available"** → `loginctl enable-linger $USER`.
-- **Windows: hosts edit fails / `spent.localhost` doesn't resolve** → re-run install from an elevated PowerShell (Win+X → "Terminal (Admin)") so it can edit `C:\Windows\System32\drivers\etc\hosts`. After the edit, the installer flushes the DNS cache automatically; if you edited hosts manually, run `ipconfig /flushdns`. `http://127.0.0.1:2412` always works as a fallback.
+- **Port 2412 in use** → `lsof -nP -iTCP:2412 -sTCP:LISTEN` (Unix) or `netstat -ano | findstr :2412` (Windows). Kill the offender and restart `bun start`.
 - **Bank scrape fails with "Cloudflare"** → temporarily run with `SPENT_DISABLE_CHROMIUM_SANDBOX=1` to let Puppeteer use a real Chrome profile.
 
 ## Roadmap
@@ -377,7 +331,7 @@ spent/
 - [ ] CSV / OFX export
 - [ ] Custom user-defined categories
 - [ ] Mobile companion (Phase 2)
-- [ ] Multiple workspaces in the menu bar / tray app
+- [ ] Multiple workspaces
 
 ## Contributing
 

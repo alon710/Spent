@@ -8,6 +8,7 @@
     "build": "next build",
     "start": "next start -H 127.0.0.1 -p 2412",
     "lint": "eslint --max-warnings=0",
+    "lint:changed": "bun scripts/lint-changed.mjs",
     "db:pull": "drizzle-kit introspect",
     "format": "biome format --write .",
     "format:check": "biome ci .",
@@ -18,7 +19,7 @@
     "security": "bun audit --production",
     "security:outdated": "bun outdated",
     "test": "bun test --conditions react-server",
-    "ci": "bun run format:check && bun run lint && bun run typecheck && bun run i18n:check && bun run knip && bun run react:doctor && bun run security && bun run test"
+    "ci": "bun run format:check && bun run lint:changed && bun run typecheck && bun run i18n:check && bun run knip && bun run react:doctor && bun run security && bun run test"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.79",

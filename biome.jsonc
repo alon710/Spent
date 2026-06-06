@@ -9,13 +9,13 @@
     "ignoreUnknown": true,
     "includes": [
       "**",
+      "!.context",
       "!**/.next",
       "!**/out",
       "!**/build",
       "!**/data",
       "!**/coverage",
       "!website",
-      "!menubar/**/build",
       "!**/*.lockb",
       "!**/bun.lock",
       "!src/components/ui"
