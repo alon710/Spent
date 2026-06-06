@@ -1,8 +1,16 @@
 import "server-only";
 
-import type { EventRole, EventType, FinancialEventWithMembers, MatchSettings } from "@/lib/types";
+import { and, asc, desc, eq, inArray, ne, sql } from "drizzle-orm";
+import type { EventType, FinancialEventWithMembers, MatchSettings } from "@/lib/types";
 import type { MatchSettingsMap, ProposedEvent } from "@/server/lib/matching";
-import { getDb } from "../index";
+import { getOrm } from "../orm";
+import {
+  bankCredentials,
+  eventMembers,
+  financialEvents,
+  matchSettings,
+  transactions,
+} from "../schema";
 
 // DB-applying half of the deduplication engine. The pure proposal logic lives in
 // src/server/lib/matching.ts; this module persists events, lists them for review,
@@ -45,34 +53,23 @@ function mk(
   return { eventType, epsilon, dayWindow, minScore, autoScore, requireKeyword, enabled: true };
 }
 
-interface MatchSettingsRow {
-  event_type: EventType;
-  epsilon: number;
-  day_window: number;
-  min_score: number;
-  auto_score: number;
-  require_keyword: number;
-  enabled: number;
-}
-
 export function getMatchSettingsMap(workspaceId: number): MatchSettingsMap {
-  const rows = getDb()
-    .prepare(
-      `SELECT event_type, epsilon, day_window, min_score, auto_score, require_keyword, enabled
-       FROM match_settings WHERE workspace_id = ?`,
-    )
-    .all(workspaceId) as MatchSettingsRow[];
+  const rows = getOrm()
+    .select()
+    .from(matchSettings)
+    .where(eq(matchSettings.workspaceId, workspaceId))
+    .all();
 
   const map: MatchSettingsMap = {};
   for (const type of EVENT_TYPES) map[type] = DEFAULT_SETTINGS[type];
   for (const r of rows) {
-    map[r.event_type] = {
-      eventType: r.event_type,
+    map[r.eventType] = {
+      eventType: r.eventType,
       epsilon: r.epsilon,
-      dayWindow: r.day_window,
-      minScore: r.min_score,
-      autoScore: r.auto_score,
-      requireKeyword: r.require_keyword === 1,
+      dayWindow: r.dayWindow,
+      minScore: r.minScore,
+      autoScore: r.autoScore,
+      requireKeyword: r.requireKeyword === 1,
       enabled: r.enabled === 1,
     };
   }
@@ -95,104 +92,67 @@ export function applyProposedEvents(
   proposals: readonly ProposedEvent[],
 ): ApplyResult {
   if (proposals.length === 0) return { eventsCreated: 0, transactionsGrouped: 0 };
-  const db = getDb();
-
-  const insertEvent = db.prepare(
-    `INSERT INTO financial_events
-       (workspace_id, event_type, canonical_transaction_id, status, source, confidence, reasons, event_key)
-     VALUES (@workspaceId, @eventType, @canonicalTransactionId, @status, 'heuristic', @confidence, @reasons, @eventKey)
-     ON CONFLICT(workspace_id, event_key) DO NOTHING`,
-  );
-  const insertMember = db.prepare(
-    `INSERT INTO event_members
-       (workspace_id, event_id, transaction_id, role, prior_kind, match_confidence)
-     VALUES (@workspaceId, @eventId, @transactionId, @role, @priorKind, @matchConfidence)`,
-  );
-  const groupTxn = db.prepare(
-    `UPDATE transactions
-       SET event_id = @eventId, event_role = @role, match_confidence = @confidence,
-           kind = CASE WHEN @flipKindTo IS NOT NULL THEN @flipKindTo ELSE kind END,
-           needs_review = CASE WHEN @needsReview = 1 THEN 1 ELSE needs_review END,
-           updated_at = datetime('now')
-     WHERE workspace_id = @workspaceId AND id = @transactionId`,
-  );
 
   let eventsCreated = 0;
   let transactionsGrouped = 0;
 
-  const run = db.transaction(() => {
+  getOrm().transaction((tx) => {
     for (const p of proposals) {
-      const info = insertEvent.run({
-        workspaceId,
-        eventType: p.eventType,
-        canonicalTransactionId: p.canonicalTransactionId,
-        status: p.needsReview ? "suggested" : "confirmed",
-        confidence: p.confidence,
-        reasons: JSON.stringify(p.reasons),
-        eventKey: p.eventKey,
-      });
-      if (info.changes === 0) continue; // existing event or rejected tombstone
-      const eventId = Number(info.lastInsertRowid);
+      const inserted = tx
+        .insert(financialEvents)
+        .values({
+          workspaceId,
+          eventType: p.eventType,
+          canonicalTransactionId: p.canonicalTransactionId,
+          status: p.needsReview ? "suggested" : "confirmed",
+          source: "heuristic",
+          confidence: p.confidence,
+          reasons: JSON.stringify(p.reasons),
+          eventKey: p.eventKey,
+        })
+        .onConflictDoNothing({
+          target: [financialEvents.workspaceId, financialEvents.eventKey],
+        })
+        .returning({ id: financialEvents.id })
+        .all();
+
+      if (inserted.length === 0) continue; // existing event or rejected tombstone
+      const eventId = inserted[0].id;
       eventsCreated++;
 
       for (const m of p.members) {
-        insertMember.run({
-          workspaceId,
-          eventId,
-          transactionId: m.transactionId,
-          role: m.role,
-          priorKind: m.priorKind,
-          matchConfidence: p.confidence,
-        });
-        if (m.grouping) {
-          groupTxn.run({
+        tx.insert(eventMembers)
+          .values({
             workspaceId,
             eventId,
             transactionId: m.transactionId,
             role: m.role,
-            confidence: p.confidence,
-            flipKindTo: m.flipKindTo,
-            needsReview: p.needsReview ? 1 : 0,
-          });
+            priorKind: m.priorKind,
+            matchConfidence: p.confidence,
+          })
+          .run();
+
+        if (m.grouping) {
+          tx.update(transactions)
+            .set({
+              eventId,
+              eventRole: m.role,
+              matchConfidence: p.confidence,
+              updatedAt: sql`datetime('now')`,
+              ...(m.flipKindTo ? { kind: m.flipKindTo } : {}),
+              ...(p.needsReview ? { needsReview: 1 } : {}),
+            })
+            .where(
+              and(eq(transactions.workspaceId, workspaceId), eq(transactions.id, m.transactionId)),
+            )
+            .run();
           transactionsGrouped++;
         }
       }
     }
   });
-  run();
 
   return { eventsCreated, transactionsGrouped };
-}
-
-interface EventRow {
-  id: number;
-  workspace_id: number;
-  event_type: EventType;
-  canonical_transaction_id: number | null;
-  status: "suggested" | "confirmed" | "rejected";
-  source: "heuristic" | "rule" | "user" | "ai";
-  confidence: number;
-  reasons: string | null;
-  event_key: string;
-  created_at: string;
-  updated_at: string;
-}
-
-interface MemberRow {
-  event_id: number;
-  id: number;
-  workspace_id: number;
-  transaction_id: number;
-  role: EventRole;
-  prior_kind: "expense" | "income" | "transfer" | null;
-  match_confidence: number | null;
-  created_at: string;
-  description: string;
-  date: string;
-  charged_amount: number;
-  charged_currency: string | null;
-  provider: string;
-  account_label: string | null;
 }
 
 export interface ListEventsParams {
@@ -205,96 +165,123 @@ export function listEvents(
   workspaceId: number,
   params: ListEventsParams = {},
 ): FinancialEventWithMembers[] {
-  const db = getDb();
-  const statuses =
+  const orm = getOrm();
+  const statuses: ("suggested" | "confirmed" | "rejected")[] =
     params.statuses && params.statuses.length > 0 ? params.statuses : ["suggested", "confirmed"];
-  const placeholders = statuses.map(() => "?").join(",");
   const limit = Math.min(params.limit ?? 100, 500);
   const offset = params.offset ?? 0;
 
-  const events = db
-    .prepare(
-      `SELECT * FROM financial_events
-       WHERE workspace_id = ? AND status IN (${placeholders})
-       ORDER BY (status = 'suggested') DESC, confidence ASC, id DESC
-       LIMIT ? OFFSET ?`,
+  const events = orm
+    .select()
+    .from(financialEvents)
+    .where(
+      and(eq(financialEvents.workspaceId, workspaceId), inArray(financialEvents.status, statuses)),
     )
-    .all(workspaceId, ...statuses, limit, offset) as EventRow[];
+    .orderBy(
+      desc(sql`${financialEvents.status} = 'suggested'`),
+      asc(financialEvents.confidence),
+      desc(financialEvents.id),
+    )
+    .limit(limit)
+    .offset(offset)
+    .all();
 
   if (events.length === 0) return [];
 
   const ids = events.map((e) => e.id);
-  const memberPlaceholders = ids.map(() => "?").join(",");
-  const members = db
-    .prepare(
-      `SELECT m.*, t.description, t.date, t.charged_amount, t.charged_currency, t.provider,
-              bc.label AS account_label
-       FROM event_members m
-       JOIN transactions t ON t.id = m.transaction_id
-       LEFT JOIN bank_credentials bc ON t.credential_id = bc.id
-       WHERE m.workspace_id = ? AND m.event_id IN (${memberPlaceholders})
-       ORDER BY m.id ASC`,
-    )
-    .all(workspaceId, ...ids) as MemberRow[];
+  const members = orm
+    .select({
+      eventId: eventMembers.eventId,
+      id: eventMembers.id,
+      workspaceId: eventMembers.workspaceId,
+      transactionId: eventMembers.transactionId,
+      role: eventMembers.role,
+      priorKind: eventMembers.priorKind,
+      matchConfidence: eventMembers.matchConfidence,
+      createdAt: eventMembers.createdAt,
+      description: transactions.description,
+      date: transactions.date,
+      chargedAmount: transactions.chargedAmount,
+      chargedCurrency: transactions.chargedCurrency,
+      provider: transactions.provider,
+      accountLabel: bankCredentials.label,
+    })
+    .from(eventMembers)
+    .innerJoin(transactions, eq(transactions.id, eventMembers.transactionId))
+    .leftJoin(bankCredentials, eq(bankCredentials.id, transactions.credentialId))
+    .where(and(eq(eventMembers.workspaceId, workspaceId), inArray(eventMembers.eventId, ids)))
+    .orderBy(asc(eventMembers.id))
+    .all();
 
-  const membersByEvent = new Map<number, MemberRow[]>();
+  const membersByEvent = new Map<number, typeof members>();
   for (const m of members) {
-    const list = membersByEvent.get(m.event_id) ?? [];
+    const list = membersByEvent.get(m.eventId) ?? [];
     list.push(m);
-    membersByEvent.set(m.event_id, list);
+    membersByEvent.set(m.eventId, list);
   }
 
   return events.map((e) => ({
     id: e.id,
-    workspaceId: e.workspace_id,
-    eventType: e.event_type,
-    canonicalTransactionId: e.canonical_transaction_id,
+    workspaceId: e.workspaceId,
+    eventType: e.eventType,
+    canonicalTransactionId: e.canonicalTransactionId,
     status: e.status,
     source: e.source,
     confidence: e.confidence,
     reasons: e.reasons ? (JSON.parse(e.reasons) as string[]) : [],
-    eventKey: e.event_key,
-    createdAt: e.created_at,
-    updatedAt: e.updated_at,
+    eventKey: e.eventKey,
+    createdAt: e.createdAt,
+    updatedAt: e.updatedAt,
     members: (membersByEvent.get(e.id) ?? []).map((m) => ({
       id: m.id,
-      workspaceId: m.workspace_id,
-      eventId: m.event_id,
-      transactionId: m.transaction_id,
+      workspaceId: m.workspaceId,
+      eventId: m.eventId,
+      transactionId: m.transactionId,
       role: m.role,
-      priorKind: m.prior_kind,
-      matchConfidence: m.match_confidence,
-      createdAt: m.created_at,
+      priorKind: m.priorKind,
+      matchConfidence: m.matchConfidence,
+      createdAt: m.createdAt,
       description: m.description,
       date: m.date,
-      chargedAmount: m.charged_amount,
-      chargedCurrency: m.charged_currency,
+      chargedAmount: m.chargedAmount,
+      chargedCurrency: m.chargedCurrency,
       provider: m.provider,
-      accountLabel: m.account_label,
+      accountLabel: m.accountLabel,
     })),
   }));
 }
 
 /** Accept a suggested event. Clears the review flag on its grouping legs. */
 export function confirmEvent(workspaceId: number, eventId: number): boolean {
-  const db = getDb();
-  const run = db.transaction(() => {
-    const info = db
-      .prepare(
-        `UPDATE financial_events SET status = 'confirmed', updated_at = datetime('now')
-         WHERE workspace_id = ? AND id = ? AND status != 'rejected'`,
+  return getOrm().transaction((tx) => {
+    const res = tx
+      .update(financialEvents)
+      .set({ status: "confirmed", updatedAt: sql`datetime('now')` })
+      .where(
+        and(
+          eq(financialEvents.workspaceId, workspaceId),
+          eq(financialEvents.id, eventId),
+          ne(financialEvents.status, "rejected"),
+        ),
       )
-      .run(workspaceId, eventId);
-    if (info.changes === 0) return false;
-    db.prepare(
-      `UPDATE transactions SET needs_review = 0, updated_at = datetime('now')
-       WHERE workspace_id = ? AND id IN (
-         SELECT transaction_id FROM event_members WHERE workspace_id = ? AND event_id = ?
-       )`,
-    ).run(workspaceId, workspaceId, eventId);
+      .run();
+    if (res.changes === 0) return false;
+
+    const memberIds = tx
+      .select({ id: eventMembers.transactionId })
+      .from(eventMembers)
+      .where(and(eq(eventMembers.workspaceId, workspaceId), eq(eventMembers.eventId, eventId)))
+      .all()
+      .map((r) => r.id);
+
+    if (memberIds.length > 0) {
+      tx.update(transactions)
+        .set({ needsReview: 0, updatedAt: sql`datetime('now')` })
+        .where(and(eq(transactions.workspaceId, workspaceId), inArray(transactions.id, memberIds)))
+        .run();
+    }
     return true;
   });
-  return run();
 }
 
 /**
@@ -303,46 +290,46 @@ export function confirmEvent(workspaceId: number, eventId: number): boolean {
  * same match is never re-suggested on the next sync.
  */
 export function rejectEvent(workspaceId: number, eventId: number): boolean {
-  const db = getDb();
-  const run = db.transaction(() => {
-    const members = db
-      .prepare(
-        `SELECT transaction_id, role, prior_kind FROM event_members
-         WHERE workspace_id = ? AND event_id = ?`,
-      )
-      .all(workspaceId, eventId) as {
-      transaction_id: number;
-      role: EventRole;
-      prior_kind: "expense" | "income" | "transfer" | null;
-    }[];
-
-    const exists = db
-      .prepare("SELECT 1 FROM financial_events WHERE workspace_id = ? AND id = ?")
-      .get(workspaceId, eventId);
+  return getOrm().transaction((tx) => {
+    const exists = tx
+      .select({ id: financialEvents.id })
+      .from(financialEvents)
+      .where(and(eq(financialEvents.workspaceId, workspaceId), eq(financialEvents.id, eventId)))
+      .get();
     if (!exists) return false;
 
-    const restore = db.prepare(
-      `UPDATE transactions
-         SET event_id = NULL, event_role = NULL, match_confidence = NULL, needs_review = 0,
-             kind = CASE WHEN @priorKind IS NOT NULL THEN @priorKind ELSE kind END,
-             updated_at = datetime('now')
-       WHERE workspace_id = @workspaceId AND id = @transactionId`,
-    );
+    const members = tx
+      .select({
+        transactionId: eventMembers.transactionId,
+        role: eventMembers.role,
+        priorKind: eventMembers.priorKind,
+      })
+      .from(eventMembers)
+      .where(and(eq(eventMembers.workspaceId, workspaceId), eq(eventMembers.eventId, eventId)))
+      .all();
+
     for (const m of members) {
       if (m.role === "purchase") continue; // never set event_id; nothing to restore
-      restore.run({ workspaceId, transactionId: m.transaction_id, priorKind: m.prior_kind });
+      tx.update(transactions)
+        .set({
+          eventId: null,
+          eventRole: null,
+          matchConfidence: null,
+          needsReview: 0,
+          updatedAt: sql`datetime('now')`,
+          ...(m.priorKind ? { kind: m.priorKind } : {}),
+        })
+        .where(and(eq(transactions.workspaceId, workspaceId), eq(transactions.id, m.transactionId)))
+        .run();
     }
 
-    db.prepare("DELETE FROM event_members WHERE workspace_id = ? AND event_id = ?").run(
-      workspaceId,
-      eventId,
-    );
-    db.prepare(
-      `UPDATE financial_events
-         SET status = 'rejected', canonical_transaction_id = NULL, updated_at = datetime('now')
-       WHERE workspace_id = ? AND id = ?`,
-    ).run(workspaceId, eventId);
+    tx.delete(eventMembers)
+      .where(and(eq(eventMembers.workspaceId, workspaceId), eq(eventMembers.eventId, eventId)))
+      .run();
+    tx.update(financialEvents)
+      .set({ status: "rejected", canonicalTransactionId: null, updatedAt: sql`datetime('now')` })
+      .where(and(eq(financialEvents.workspaceId, workspaceId), eq(financialEvents.id, eventId)))
+      .run();
     return true;
   });
-  return run();
 }
