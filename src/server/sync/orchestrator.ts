@@ -12,6 +12,7 @@ import {
 } from "@/server/db/queries/bank-credentials";
 import { getAllCategories, getCategoryByName } from "@/server/db/queries/categories";
 import { getRecentCorrections } from "@/server/db/queries/category-corrections";
+import { applyMerchantRulesToSyncRun } from "@/server/db/queries/excluded-merchants";
 import { getAppSettings } from "@/server/db/queries/settings";
 import { completeSyncRun, createSyncRun, failSyncRun } from "@/server/db/queries/sync-runs";
 import {
@@ -243,6 +244,7 @@ async function syncOneCredential(
     meta.id,
     syncRunId,
   );
+  applyMerchantRulesToSyncRun(workspaceId, syncRunId);
   completeSyncRun(syncRunId, added, updated);
 
   return {

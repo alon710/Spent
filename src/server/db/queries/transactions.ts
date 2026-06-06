@@ -272,6 +272,7 @@ export function getUncategorizedTransactionIds(workspaceId: number): number[] {
         eq(transactionsTable.workspaceId, workspaceId),
         isNull(transactionsTable.categoryId),
         ne(transactionsTable.kind, "transfer"),
+        eq(transactionsTable.isExcluded, 0),
       ),
     )
     .orderBy(desc(transactionsTable.date))
@@ -291,6 +292,7 @@ export function getUncategorizedIdsByKind(
         eq(transactionsTable.workspaceId, workspaceId),
         isNull(transactionsTable.categoryId),
         eq(transactionsTable.kind, kind),
+        eq(transactionsTable.isExcluded, 0),
       ),
     )
     .orderBy(desc(transactionsTable.date))
@@ -420,6 +422,7 @@ export function getMonthlySummary(workspaceId: number, months: number): MonthlyS
          AND date >= date('now', '-' || ? || ' months')
          AND status = 'completed'
          AND kind = 'expense'
+         AND is_excluded = 0
        GROUP BY month
        ORDER BY month ASC`,
     )
@@ -439,6 +442,7 @@ export function getTopMerchants(
               COUNT(*) as count
        FROM transactions
        WHERE workspace_id = ? AND date >= ? AND date <= ? AND status = 'completed' AND kind = 'expense'
+         AND is_excluded = 0
        GROUP BY description
        ORDER BY amount DESC
        LIMIT ?`,
@@ -462,6 +466,7 @@ export function getCategoryBreakdown(
        FROM transactions t
        LEFT JOIN categories c ON t.category_id = c.id
        WHERE t.workspace_id = ? AND t.date >= ? AND t.date <= ? AND t.status = 'completed' AND t.kind = 'expense'
+         AND t.is_excluded = 0
        GROUP BY t.category_id
        ORDER BY amount DESC`,
     )
@@ -486,6 +491,7 @@ export function getCategorySpendInRange(
               COUNT(*) as count
        FROM transactions
        WHERE workspace_id = ? AND date >= ? AND date <= ? AND status = 'completed' AND kind = 'expense' AND category_id IS NOT NULL
+         AND is_excluded = 0
        GROUP BY category_id`,
     )
     .all(workspaceId, from, to) as CategorySpend[];
@@ -510,6 +516,7 @@ export function getTopMerchantPerCategory(
                 ROW_NUMBER() OVER (PARTITION BY category_id ORDER BY SUM(ABS(charged_amount)) DESC) as rn
          FROM transactions
          WHERE workspace_id = ? AND date >= ? AND date <= ? AND status = 'completed' AND kind = 'expense' AND category_id IS NOT NULL
+           AND is_excluded = 0
          GROUP BY category_id, description
        )
        WHERE rn = 1`,
@@ -544,6 +551,7 @@ export function getCategorySpendByDay(
          AND t.category_id = ?
          AND t.kind = 'expense'
          AND t.status = 'completed'
+         AND t.is_excluded = 0
        GROUP BY days.d
        ORDER BY days.d ASC`,
     )
@@ -573,6 +581,7 @@ export function getTopMerchantsForCategory(
          AND date >= ? AND date <= ?
          AND status = 'completed'
          AND kind = 'expense'
+         AND is_excluded = 0
        GROUP BY description
        ORDER BY amount DESC
        LIMIT ?`,
@@ -585,7 +594,8 @@ export function getPeriodTotal(workspaceId: number, from: string, to: string): n
     .prepare(
       `SELECT COALESCE(SUM(ABS(charged_amount)), 0) as total
        FROM transactions
-       WHERE workspace_id = ? AND date >= ? AND date <= ? AND status = 'completed' AND kind = 'expense'`,
+       WHERE workspace_id = ? AND date >= ? AND date <= ? AND status = 'completed' AND kind = 'expense'
+         AND is_excluded = 0`,
     )
     .get(workspaceId, from, to) as { total: number };
   return row.total;
@@ -596,7 +606,8 @@ export function getPeriodCount(workspaceId: number, from: string, to: string): n
     .prepare(
       `SELECT COUNT(*) as count
        FROM transactions
-       WHERE workspace_id = ? AND date >= ? AND date <= ? AND status = 'completed' AND kind = 'expense'`,
+       WHERE workspace_id = ? AND date >= ? AND date <= ? AND status = 'completed' AND kind = 'expense'
+         AND is_excluded = 0`,
     )
     .get(workspaceId, from, to) as { count: number };
   return row.count;
@@ -701,6 +712,7 @@ interface TransactionContext {
   categoryId: number | null;
   categorySource: "ai" | "user" | null;
   kind: "expense" | "income" | "transfer";
+  provider: string;
 }
 
 export function getTransactionContext(workspaceId: number, id: number): TransactionContext | null {
@@ -711,6 +723,7 @@ export function getTransactionContext(workspaceId: number, id: number): Transact
       categoryId: transactionsTable.categoryId,
       categorySource: transactionsTable.categorySource,
       kind: transactionsTable.kind,
+      provider: transactionsTable.provider,
     })
     .from(transactionsTable)
     .where(and(eq(transactionsTable.workspaceId, workspaceId), eq(transactionsTable.id, id)))
@@ -767,7 +780,13 @@ export function getTransactionsSummary(
   params: TransactionsSummaryParams = {},
 ): TransactionsSummary {
   const db = getDb();
-  const baseConditions = ["workspace_id = ?", "date >= ?", "date <= ?", "status = 'completed'"];
+  const baseConditions = [
+    "workspace_id = ?",
+    "date >= ?",
+    "date <= ?",
+    "status = 'completed'",
+    "is_excluded = 0",
+  ];
   const baseValues: (string | number)[] = [workspaceId, from, to];
   const summaryCredentialIds =
     params.credentialIds && params.credentialIds.length > 0
@@ -801,6 +820,7 @@ export function getTransactionsSummary(
       "t.date <= ?",
       "t.status = 'completed'",
       "t.kind = ?",
+      "t.is_excluded = 0",
     ];
     const tValues: (string | number)[] = [workspaceId, from, to, sign];
     appendCredentialIdsFilter(tConditions, tValues, summaryCredentialIds, "t.");
