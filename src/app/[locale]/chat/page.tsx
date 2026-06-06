@@ -1,12 +1,14 @@
+import { asc } from "drizzle-orm";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { ChatClient } from "@/components/chat/chat-client";
 import { ChatDisabled } from "@/components/chat/chat-disabled";
 import { AppShell } from "@/components/layout/app-shell";
-import { getDb } from "@/server/db/index";
+import { getOrm } from "@/server/db/orm";
 import { anyWorkspaceHasBankCredentials } from "@/server/db/queries/bank-credentials";
 import { getAppSettings } from "@/server/db/queries/settings";
+import { workspaces } from "@/server/db/schema";
 
 export const dynamic = "force-dynamic";
 
@@ -16,9 +18,12 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 function firstWorkspaceId(): number {
-  const row = getDb().prepare("SELECT id FROM workspaces ORDER BY id LIMIT 1").get() as
-    | { id: number }
-    | undefined;
+  const row = getOrm()
+    .select({ id: workspaces.id })
+    .from(workspaces)
+    .orderBy(asc(workspaces.id))
+    .limit(1)
+    .get();
   if (!row) throw new Error("No workspace exists");
   return row.id;
 }

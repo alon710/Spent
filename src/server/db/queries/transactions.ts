@@ -1,5 +1,6 @@
 import "server-only";
 
+import { and, desc, eq, gte, inArray, isNull, ne, sql } from "drizzle-orm";
 import { isTransactionSortField, TRANSACTION_SORT_SQL } from "@/lib/transaction-sort";
 import type {
   CategoryBreakdown,
@@ -11,6 +12,8 @@ import { computeDedupHash } from "../../lib/dedup";
 import type { MatchCandidate } from "../../lib/matching";
 import { detectKind } from "../../lib/transfers";
 import { getDb } from "../index";
+import { getOrm } from "../orm";
+import { transactions as transactionsTable } from "../schema";
 export type TransactionKindFilter = "expense" | "income" | "all";
 
 interface RawTransaction {
@@ -261,11 +264,18 @@ export function queryTransactions(
 }
 
 export function getUncategorizedTransactionIds(workspaceId: number): number[] {
-  const rows = getDb()
-    .prepare(
-      "SELECT id FROM transactions WHERE workspace_id = ? AND category_id IS NULL AND kind != 'transfer' ORDER BY date DESC",
+  const rows = getOrm()
+    .select({ id: transactionsTable.id })
+    .from(transactionsTable)
+    .where(
+      and(
+        eq(transactionsTable.workspaceId, workspaceId),
+        isNull(transactionsTable.categoryId),
+        ne(transactionsTable.kind, "transfer"),
+      ),
     )
-    .all(workspaceId) as { id: number }[];
+    .orderBy(desc(transactionsTable.date))
+    .all();
   return rows.map((r) => r.id);
 }
 
@@ -273,11 +283,18 @@ export function getUncategorizedIdsByKind(
   workspaceId: number,
   kind: "expense" | "income",
 ): number[] {
-  const rows = getDb()
-    .prepare(
-      "SELECT id FROM transactions WHERE workspace_id = ? AND category_id IS NULL AND kind = ? ORDER BY date DESC",
+  const rows = getOrm()
+    .select({ id: transactionsTable.id })
+    .from(transactionsTable)
+    .where(
+      and(
+        eq(transactionsTable.workspaceId, workspaceId),
+        isNull(transactionsTable.categoryId),
+        eq(transactionsTable.kind, kind),
+      ),
     )
-    .all(workspaceId, kind) as { id: number }[];
+    .orderBy(desc(transactionsTable.date))
+    .all();
   return rows.map((r) => r.id);
 }
 
@@ -286,16 +303,30 @@ export function getUncategorizedIdsByKind(
 // rows to wrap bank-side card payments) but excludes rows already in an event so
 // re-matching is idempotent. See src/server/lib/matching.ts.
 export function getMatchCandidates(workspaceId: number, from: string): MatchCandidate[] {
-  return getDb()
-    .prepare(
-      `SELECT id, credential_id as credentialId, account_number as accountNumber, provider,
-              date, charged_amount as chargedAmount, charged_currency as chargedCurrency,
-              description, kind, dedup_hash as dedupHash, dedup_sequence as dedupSequence
-       FROM transactions
-       WHERE workspace_id = ? AND date >= ? AND event_id IS NULL
-       ORDER BY date DESC`,
+  return getOrm()
+    .select({
+      id: transactionsTable.id,
+      credentialId: transactionsTable.credentialId,
+      accountNumber: transactionsTable.accountNumber,
+      provider: transactionsTable.provider,
+      date: transactionsTable.date,
+      chargedAmount: transactionsTable.chargedAmount,
+      chargedCurrency: transactionsTable.chargedCurrency,
+      description: transactionsTable.description,
+      kind: transactionsTable.kind,
+      dedupHash: transactionsTable.dedupHash,
+      dedupSequence: transactionsTable.dedupSequence,
+    })
+    .from(transactionsTable)
+    .where(
+      and(
+        eq(transactionsTable.workspaceId, workspaceId),
+        gte(transactionsTable.date, from),
+        isNull(transactionsTable.eventId),
+      ),
     )
-    .all(workspaceId, from) as MatchCandidate[];
+    .orderBy(desc(transactionsTable.date))
+    .all() as MatchCandidate[];
 }
 
 // Uncategorized expense rows, for deterministic "Cash & ATM" filing. Limiting
@@ -303,12 +334,17 @@ export function getMatchCandidates(workspaceId: number, from: string): MatchCand
 export function getUncategorizedAtmExpenses(
   workspaceId: number,
 ): { id: number; description: string }[] {
-  return getDb()
-    .prepare(
-      `SELECT id, description FROM transactions
-       WHERE workspace_id = ? AND kind = 'expense' AND category_id IS NULL`,
+  return getOrm()
+    .select({ id: transactionsTable.id, description: transactionsTable.description })
+    .from(transactionsTable)
+    .where(
+      and(
+        eq(transactionsTable.workspaceId, workspaceId),
+        eq(transactionsTable.kind, "expense"),
+        isNull(transactionsTable.categoryId),
+      ),
     )
-    .all(workspaceId) as { id: number; description: string }[];
+    .all();
 }
 
 export function getTransactionsForCategorization(
@@ -322,20 +358,17 @@ export function getTransactionsForCategorization(
   memo: string | null;
 }[] {
   if (ids.length === 0) return [];
-  const placeholders = ids.map(() => "?").join(",");
-  return getDb()
-    .prepare(
-      `SELECT id, description, charged_amount as chargedAmount,
-              original_currency as originalCurrency, memo
-       FROM transactions WHERE workspace_id = ? AND id IN (${placeholders})`,
-    )
-    .all(workspaceId, ...ids) as {
-    id: number;
-    description: string;
-    chargedAmount: number;
-    originalCurrency: string;
-    memo: string | null;
-  }[];
+  return getOrm()
+    .select({
+      id: transactionsTable.id,
+      description: transactionsTable.description,
+      chargedAmount: transactionsTable.chargedAmount,
+      originalCurrency: transactionsTable.originalCurrency,
+      memo: transactionsTable.memo,
+    })
+    .from(transactionsTable)
+    .where(and(eq(transactionsTable.workspaceId, workspaceId), inArray(transactionsTable.id, ids)))
+    .all();
 }
 
 export function updateTransactionCategory(
@@ -344,31 +377,37 @@ export function updateTransactionCategory(
   categoryId: number,
   source: "ai" | "user",
 ): void {
-  getDb()
-    .prepare(
-      `UPDATE transactions
-       SET category_id = ?, category_source = ?, updated_at = datetime('now')
-       WHERE workspace_id = ? AND id = ?`,
-    )
-    .run(categoryId, source, workspaceId, id);
+  getOrm()
+    .update(transactionsTable)
+    .set({ categoryId, categorySource: source, updatedAt: sql`datetime('now')` })
+    .where(and(eq(transactionsTable.workspaceId, workspaceId), eq(transactionsTable.id, id)))
+    .run();
 }
 
 export function batchUpdateCategories(
   workspaceId: number,
   updates: { id: number; categoryId: number; aiConfidence?: number | null }[],
 ): void {
-  const db = getDb();
-  const stmt = db.prepare(
-    `UPDATE transactions
-     SET category_id = ?, category_source = 'ai', ai_confidence = ?, updated_at = datetime('now')
-     WHERE workspace_id = ? AND id = ? AND category_source IS NOT 'user'`,
-  );
-
-  db.transaction(() => {
+  getOrm().transaction((tx) => {
     for (const { id, categoryId, aiConfidence } of updates) {
-      stmt.run(categoryId, aiConfidence ?? null, workspaceId, id);
+      tx.update(transactionsTable)
+        .set({
+          categoryId,
+          categorySource: "ai",
+          aiConfidence: aiConfidence ?? null,
+          updatedAt: sql`datetime('now')`,
+        })
+        .where(
+          and(
+            eq(transactionsTable.workspaceId, workspaceId),
+            eq(transactionsTable.id, id),
+            // IS NOT keeps NULL category_source rows eligible (unlike <>).
+            sql`${transactionsTable.categorySource} IS NOT 'user'`,
+          ),
+        )
+        .run();
     }
-  })();
+  });
 }
 
 export function getMonthlySummary(workspaceId: number, months: number): MonthlySummary[] {
@@ -641,23 +680,19 @@ export function setTransactionKind(
   id: number,
   kind: "expense" | "income" | "transfer",
 ): void {
-  getDb()
-    .prepare(
-      `UPDATE transactions
-       SET kind = ?, updated_at = datetime('now')
-       WHERE workspace_id = ? AND id = ?`,
-    )
-    .run(kind, workspaceId, id);
+  getOrm()
+    .update(transactionsTable)
+    .set({ kind, updatedAt: sql`datetime('now')` })
+    .where(and(eq(transactionsTable.workspaceId, workspaceId), eq(transactionsTable.id, id)))
+    .run();
 }
 
 export function setTransactionNeedsReview(workspaceId: number, id: number, value: boolean): void {
-  getDb()
-    .prepare(
-      `UPDATE transactions
-       SET needs_review = ?, updated_at = datetime('now')
-       WHERE workspace_id = ? AND id = ?`,
-    )
-    .run(value ? 1 : 0, workspaceId, id);
+  getOrm()
+    .update(transactionsTable)
+    .set({ needsReview: value ? 1 : 0, updatedAt: sql`datetime('now')` })
+    .where(and(eq(transactionsTable.workspaceId, workspaceId), eq(transactionsTable.id, id)))
+    .run();
 }
 
 interface TransactionContext {
@@ -669,13 +704,17 @@ interface TransactionContext {
 }
 
 export function getTransactionContext(workspaceId: number, id: number): TransactionContext | null {
-  const row = getDb()
-    .prepare(
-      `SELECT id, description, category_id as categoryId,
-              category_source as categorySource, kind
-       FROM transactions WHERE workspace_id = ? AND id = ?`,
-    )
-    .get(workspaceId, id) as TransactionContext | undefined;
+  const row = getOrm()
+    .select({
+      id: transactionsTable.id,
+      description: transactionsTable.description,
+      categoryId: transactionsTable.categoryId,
+      categorySource: transactionsTable.categorySource,
+      kind: transactionsTable.kind,
+    })
+    .from(transactionsTable)
+    .where(and(eq(transactionsTable.workspaceId, workspaceId), eq(transactionsTable.id, id)))
+    .get();
   return row ?? null;
 }
 
@@ -684,17 +723,14 @@ export function batchSetNeedsReview(
   updates: { id: number; needsReview: boolean }[],
 ): void {
   if (updates.length === 0) return;
-  const db = getDb();
-  const stmt = db.prepare(
-    `UPDATE transactions
-     SET needs_review = ?, updated_at = datetime('now')
-     WHERE workspace_id = ? AND id = ?`,
-  );
-  db.transaction(() => {
+  getOrm().transaction((tx) => {
     for (const { id, needsReview } of updates) {
-      stmt.run(needsReview ? 1 : 0, workspaceId, id);
+      tx.update(transactionsTable)
+        .set({ needsReview: needsReview ? 1 : 0, updatedAt: sql`datetime('now')` })
+        .where(and(eq(transactionsTable.workspaceId, workspaceId), eq(transactionsTable.id, id)))
+        .run();
     }
-  })();
+  });
 }
 
 export interface NeedsReviewCount {
