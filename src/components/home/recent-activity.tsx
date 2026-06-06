@@ -8,18 +8,15 @@ import { translateCategoryName } from "@/lib/i18n-data";
 import type { HomeRecentTransaction } from "@/lib/types";
 import { CardAction, CardShell } from "./card-shell";
 
-interface Props {
-  items: HomeRecentTransaction[];
-}
-
-export function RecentTransactionsCard({ items }: Props) {
+export function RecentActivity({ items }: { items: HomeRecentTransaction[] }) {
   const t = useTranslations("home");
   const tCat = useTranslations("categoriesSeeded");
   const locale = useLocale() as Locale;
+
   if (items.length === 0) {
     return (
       <CardShell label={t("recentActivity")}>
-        <div className="flex flex-1 items-center justify-center py-6 text-sm text-muted-foreground">
+        <div className="flex flex-1 items-center justify-center py-6 text-center text-sm text-muted-foreground">
           {t("noTransactionsYet")}
         </div>
       </CardShell>
@@ -38,21 +35,26 @@ export function RecentTransactionsCard({ items }: Props) {
               href="/transactions"
               className="flex items-center gap-3 rounded-lg px-2 py-2.5 transition-colors hover:bg-accent/40"
             >
-              <div className="flex min-w-0 flex-1 items-center gap-3">
-                <span className="w-16 shrink-0 text-xs text-muted-foreground tabular-nums">
-                  {formatDayMonth(txn.date)}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <div className="truncate text-sm font-medium">{txn.description}</div>
-                  {txn.categoryName ? (
-                    <CategoryBadge
-                      name={translateCategoryName(txn.categoryName, tCat)}
-                      color={txn.categoryColor}
-                    />
-                  ) : (
-                    <span className="text-xs text-muted-foreground">{t("uncategorized")}</span>
-                  )}
-                </div>
+              <span className="w-12 shrink-0 text-xs text-muted-foreground tabular-nums">
+                {formatDayMonth(txn.date)}
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-sm font-medium">{txn.description}</div>
+                {txn.categoryName ? (
+                  <span className="mt-0.5 inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                    {txn.categoryColor && (
+                      <span
+                        className="h-1.5 w-1.5 rounded-full"
+                        style={{ backgroundColor: txn.categoryColor }}
+                      />
+                    )}
+                    <span className="truncate">
+                      {translateCategoryName(txn.categoryName, tCat)}
+                    </span>
+                  </span>
+                ) : (
+                  <span className="text-xs text-muted-foreground">{t("uncategorized")}</span>
+                )}
               </div>
               <span
                 className={`shrink-0 text-sm tabular-nums ${
@@ -70,17 +72,7 @@ export function RecentTransactionsCard({ items }: Props) {
   );
 }
 
-function CategoryBadge({ name, color }: { name: string; color: string | null }) {
-  return (
-    <span className="mt-0.5 inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-      {color && <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: color }} />}
-      <span className="truncate">{name}</span>
-    </span>
-  );
-}
-
 function formatDayMonth(iso: string): string {
-  const formatted = formatDate(iso); // DD/MM/YYYY
-  const parts = formatted.split("/");
+  const parts = formatDate(iso).split("/");
   return `${parts[0]}/${parts[1]}`;
 }

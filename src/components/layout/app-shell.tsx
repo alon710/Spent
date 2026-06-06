@@ -27,7 +27,7 @@ export function PageHeader({
       <div className="flex min-h-14 flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-2 md:min-h-16 md:px-6 lg:px-8">
         <div className="flex min-w-0 items-center gap-3">
           <SidebarTrigger className="-ms-1 md:hidden" />
-          <h1 className="truncate font-serif text-2xl leading-none tracking-tight">{title}</h1>
+          <h1 className="truncate text-xl font-semibold tracking-tight">{title}</h1>
           {meta && (
             <>
               <span className="text-sm text-muted-foreground">·</span>

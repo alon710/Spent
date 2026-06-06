@@ -429,6 +429,36 @@ export function getMonthlySummary(workspaceId: number, months: number): MonthlyS
     .all(workspaceId, months) as MonthlySummary[];
 }
 
+export interface CategoryMonthSpend {
+  month: string;
+  categoryId: number;
+  amount: number;
+}
+
+// Per-(month, category) expense totals over a trailing window. Rolled up to
+// parents in the insight engine to draw each top-mover's trend sparkline.
+export function getCategoryMonthlySpend(
+  workspaceId: number,
+  monthsBack: number,
+): CategoryMonthSpend[] {
+  return getDb()
+    .prepare(
+      `SELECT strftime('%Y-%m', date) as month,
+              category_id as categoryId,
+              SUM(ABS(charged_amount)) as amount
+       FROM transactions
+       WHERE workspace_id = ?
+         AND date >= date('now', 'start of month', '-' || ? || ' months')
+         AND status = 'completed'
+         AND kind = 'expense'
+         AND category_id IS NOT NULL
+         AND is_excluded = 0
+       GROUP BY month, category_id
+       ORDER BY month ASC`,
+    )
+    .all(workspaceId, monthsBack) as CategoryMonthSpend[];
+}
+
 export function getTopMerchants(
   workspaceId: number,
   from: string,
@@ -556,6 +586,35 @@ export function getCategorySpendByDay(
        ORDER BY days.d ASC`,
     )
     .all(from, to, workspaceId, categoryId) as DailySpendPoint[];
+}
+
+// Total expense per calendar day across all categories. Drives the home
+// burndown curve (cumulative pace this month vs last month).
+export function getDailySpendTotals(
+  workspaceId: number,
+  from: string,
+  to: string,
+): DailySpendPoint[] {
+  return getDb()
+    .prepare(
+      `WITH RECURSIVE days(d) AS (
+         SELECT date(?)
+         UNION ALL
+         SELECT date(d, '+1 day') FROM days WHERE d < date(?)
+       )
+       SELECT days.d as date,
+              COALESCE(SUM(ABS(t.charged_amount)), 0) as amount
+       FROM days
+       LEFT JOIN transactions t
+         ON substr(t.date, 1, 10) = days.d
+         AND t.workspace_id = ?
+         AND t.kind = 'expense'
+         AND t.status = 'completed'
+         AND t.is_excluded = 0
+       GROUP BY days.d
+       ORDER BY days.d ASC`,
+    )
+    .all(from, to, workspaceId) as DailySpendPoint[];
 }
 
 export interface TopMerchantForCategory {

@@ -7,7 +7,7 @@ import type {
   Category,
   ChatSession,
   DashboardSummary,
-  HomePayload,
+  InsightPayload,
   Integration,
   SetupStatus,
   TransactionWithCategory,
@@ -290,8 +290,8 @@ export function getSummary(params: { from: string; to: string; months?: number }
   return fetchJSON<DashboardSummary>(`/api/summary?${searchParams}`);
 }
 
-export function getHome() {
-  return fetchJSON<HomePayload>(`/api/home`);
+export function getInsights() {
+  return fetchJSON<InsightPayload>(`/api/insights`);
 }
 
 export function getActivity() {

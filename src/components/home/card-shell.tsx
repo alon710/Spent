@@ -2,7 +2,6 @@
 
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
-import { CardLabel } from "@/components/ui/card-label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "@/i18n/navigation";
 import { cn } from "@/lib/utils";
@@ -17,14 +16,13 @@ interface CardShellProps {
 export function CardShell({ label, action, children, className }: CardShellProps) {
   return (
     <div
-      className={cn(
-        "flex h-full flex-col rounded-2xl border border-border bg-card p-5 md:p-6",
-        className,
-      )}
+      className={cn("flex h-full flex-col rounded-xl border border-border bg-card p-5", className)}
     >
       {(label || action) && (
         <div className="mb-4 flex items-center justify-between gap-3">
-          {label && <CardLabel>{label}</CardLabel>}
+          {label && (
+            <h2 className="text-sm font-semibold tracking-tight text-foreground">{label}</h2>
+          )}
           {action && <div className="text-xs text-muted-foreground">{action}</div>}
         </div>
       )}
