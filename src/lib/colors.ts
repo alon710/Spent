@@ -1,7 +1,7 @@
 /**
  * Shared helpers for deriving tints/shades from a category's hex color.
  * Category colors come from the database (the one legitimate place for inline
- * color); everything else uses design tokens. See design.md.
+ * color); everything else uses design tokens. See docs/design-system.md.
  */
 
 export function parseHex(hex: string): { r: number; g: number; b: number } {

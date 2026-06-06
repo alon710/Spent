@@ -280,7 +280,7 @@ Spent installs nothing outside the project folder. To remove it:
 
 **Turn on full-disk encryption** (FileVault / BitLocker / LUKS). The encryption key file sits next to the database, so disk-level protection is your last line of defense if the laptop is lost.
 
-Full threat model and responsible-disclosure policy → [SECURITY.md](SECURITY.md).
+Full threat model and responsible-disclosure policy → [docs/SECURITY.md](docs/SECURITY.md).
 
 ## Where your data lives
 
@@ -317,9 +317,6 @@ spent/
 ## Troubleshooting
 
 > The [Troubleshooting docs](https://shaya16.github.io/Spent/troubleshooting/) cover Defender, Gatekeeper, Cloudflare bot challenges, and bank-specific quirks in more depth.
-
-- **Port 2412 in use** → `lsof -nP -iTCP:2412 -sTCP:LISTEN` (Unix) or `netstat -ano | findstr :2412` (Windows). Kill the offender and restart `bun start`.
-- **Bank scrape fails with "Cloudflare"** → temporarily run with `SPENT_DISABLE_CHROMIUM_SANDBOX=1` to let Puppeteer use a real Chrome profile.
 
 ## Roadmap
 

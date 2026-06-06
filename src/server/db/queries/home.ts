@@ -4,7 +4,6 @@ import { and, asc, desc, eq } from "drizzle-orm";
 import type {
   HomeBankHealthItem,
   HomeCashFlow,
-  HomeCategorySnapshotItem,
   HomeHistoricalTrendPoint,
   HomeNeedsAttention,
   HomeRecentTransaction,
@@ -13,7 +12,7 @@ import { BANK_PROVIDERS } from "@/lib/types";
 import { toLocalISODate } from "../../lib/date-utils";
 import { getDb } from "../index";
 import { getOrm } from "../orm";
-import { bankCredentials, budgets, categories, syncRuns } from "../schema";
+import { bankCredentials, syncRuns } from "../schema";
 
 export function getCashFlow(workspaceId: number, from: string, to: string): HomeCashFlow {
   const db = getDb();
@@ -206,98 +205,6 @@ export function getBankHealth(workspaceId: number): HomeBankHealthItem[] {
   });
 }
 
-export function getCategorySnapshot(
-  workspaceId: number,
-  from: string,
-  to: string,
-  limit: number,
-): HomeCategorySnapshotItem[] {
-  const orm = getOrm();
-
-  const categoryRows = orm
-    .select({
-      id: categories.id,
-      parentId: categories.parentId,
-      name: categories.name,
-      color: categories.color,
-    })
-    .from(categories)
-    .where(and(eq(categories.workspaceId, workspaceId), eq(categories.kind, "expense")))
-    .all();
-
-  const parentIds = new Set<number>();
-  for (const c of categoryRows) {
-    if (c.parentId != null) parentIds.add(c.parentId);
-  }
-
-  const spendRows = getDb()
-    .prepare(
-      `SELECT category_id as categoryId, SUM(ABS(charged_amount)) as amount
-       FROM transactions
-       WHERE workspace_id = ? AND date >= ? AND date <= ?
-         AND status = 'completed' AND kind = 'expense'
-         AND category_id IS NOT NULL AND is_excluded = 0
-       GROUP BY category_id`,
-    )
-    .all(workspaceId, from, to) as Array<{ categoryId: number; amount: number }>;
-
-  const budgetRows = orm
-    .select({
-      categoryId: budgets.categoryId,
-      monthlyAmount: budgets.monthlyAmount,
-    })
-    .from(budgets)
-    .where(eq(budgets.workspaceId, workspaceId))
-    .all();
-
-  const budgetByCategory = new Map<number, number>();
-  for (const b of budgetRows) budgetByCategory.set(b.categoryId, b.monthlyAmount);
-
-  // Roll each leaf's spend up to its parent if it has one, else under its own id.
-  const rolledSpend = new Map<number, number>();
-  const rolledBudget = new Map<number, number>();
-
-  const categoryById = new Map(categoryRows.map((c) => [c.id, c]));
-
-  for (const row of spendRows) {
-    const cat = categoryById.get(row.categoryId);
-    if (!cat) continue;
-    const key = cat.parentId ?? cat.id;
-    rolledSpend.set(key, (rolledSpend.get(key) ?? 0) + row.amount);
-  }
-
-  // Roll up budgets the same way. Parent's explicit budget takes precedence
-  // over the sum of children when it exists.
-  for (const cat of categoryRows) {
-    const explicit = budgetByCategory.get(cat.id);
-    if (explicit == null) continue;
-    const key = cat.parentId ?? cat.id;
-    if (cat.parentId == null && parentIds.has(cat.id)) {
-      // This is a parent with its own explicit budget — use it directly.
-      rolledBudget.set(key, explicit);
-    } else {
-      // Leaf budget: only add if parent doesn't have its own explicit budget.
-      const parentHasOwnBudget = cat.parentId != null && budgetByCategory.has(cat.parentId);
-      if (parentHasOwnBudget) continue;
-      rolledBudget.set(key, (rolledBudget.get(key) ?? 0) + explicit);
-    }
-  }
-
-  const items: HomeCategorySnapshotItem[] = [];
-  for (const [key, spent] of rolledSpend) {
-    const cat = categoryById.get(key);
-    if (!cat) continue;
-    const budget = rolledBudget.get(key) ?? 0;
-    items.push({
-      categoryId: key,
-      name: cat.name,
-      color: cat.color,
-      spent,
-      budget,
-      percentSpent: budget > 0 ? (spent / budget) * 100 : 0,
-    });
-  }
-
-  items.sort((a, b) => b.spent - a.spent);
-  return items.slice(0, limit);
-}
+// Category breakdown for the home screen now lives in the insight engine
+// (src/server/insights/engine.ts), which rolls leaves to parents and attaches
+// month-over-month deltas. Snapshot-with-budget is intentionally gone.

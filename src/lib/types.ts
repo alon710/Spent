@@ -229,38 +229,10 @@ export interface Budget {
   isAuto: boolean;
 }
 
-export type HomeSection =
-  | "thisMonth"
-  | "cashFlow"
-  | "categorySnapshot"
-  | "historicalTrend"
-  | "recentTransactions"
-  | "topMerchants"
-  | "needsAttention"
-  | "bankHealth";
-
-export interface HomeThisMonth {
-  spent: number;
-  budget: number;
-  deltaVsLastMonth: number | null;
-  daysUntilPayday: number;
-  timeElapsedPercent: number;
-  monthLabel: string;
-}
-
 export interface HomeCashFlow {
   income: number;
   expenses: number;
   net: number;
-}
-
-export interface HomeCategorySnapshotItem {
-  categoryId: number;
-  name: string;
-  color: string;
-  spent: number;
-  budget: number;
-  percentSpent: number;
 }
 
 export interface HomeHistoricalTrendPoint {
@@ -281,12 +253,6 @@ export interface HomeRecentTransaction {
   categoryColor: string | null;
 }
 
-export interface HomeTopMerchant {
-  name: string;
-  total: number;
-  count: number;
-}
-
 export interface HomeNeedsAttention {
   uncategorized: number;
   lowConfidence: number;
@@ -301,22 +267,131 @@ export interface HomeBankHealthItem {
   errorMessage: string | null;
 }
 
-export interface HomeSectionError {
-  section: HomeSection;
+// ---------------------------------------------------------------------------
+// Insights: the single payload behind the redesigned Home. Every field exists
+// to answer one of the five questions: what did I spend on, what changed vs
+// last month, why, is it good or bad, what can I improve. All numbers are
+// computed deterministically server-side (see src/server/insights/).
+// ---------------------------------------------------------------------------
+
+/** How the month is projected to end relative to the user's own typical spend. */
+export type VerdictStatus = "under" | "on-track" | "over";
+
+export interface Verdict {
+  /** Spend so far this month (month-to-date). */
+  spent: number;
+  /** Straight-line projection of month-end spend from the current pace. */
+  projected: number;
+  monthLabel: string;
+  elapsedDays: number;
+  totalDays: number;
+  daysUntilPayday: number;
+  /** Spend over the same number of days last month (like-for-like). */
+  priorMtd: number;
+  /** spent - priorMtd (signed; positive means spending more than last month). */
+  deltaAmount: number;
+  /** Percent change vs the same window last month, or null when no baseline. */
+  deltaPercent: number | null;
+  /** Trailing 3-month average monthly spend, the honest baseline. */
+  typicalMonthly: number | null;
+  /** projected vs typicalMonthly, as a percent (signed), or null. */
+  vsTypicalPercent: number | null;
+  /** Verdict on the projected month-end vs the user's typical spend. */
+  projectedStatus: VerdictStatus;
+  /** Optional explicit monthly target the user set in Settings. */
+  monthlyTarget: number | null;
+  /** monthlyTarget - spent when a target exists, else null. */
+  remaining: number | null;
+}
+
+/** A category whose spend changed the most vs last month (ranked by magnitude). */
+export interface Mover {
+  categoryId: number;
+  name: string;
+  color: string;
+  icon: string | null;
+  /** Spend this month (month-to-date). */
+  current: number;
+  /** Spend across the whole prior month. */
+  prior: number;
+  /** current - prior (signed). */
+  deltaAmount: number;
+  deltaPercent: number | null;
+  direction: "up" | "down";
+  /** The merchant driving most of this category's spend, for the inline "why". */
+  topMerchant: string | null;
+  /** Monthly totals over the trailing window so the row can show creep. */
+  trend: number[];
+}
+
+export interface BreakdownItem {
+  categoryId: number;
+  name: string;
+  color: string;
+  icon: string | null;
+  amount: number;
+  percentOfTotal: number;
+  /** Percent change vs the whole prior month, or null. */
+  deltaPercent: number | null;
+}
+
+export type InsightType =
+  | "biggest-increase"
+  | "biggest-saving"
+  | "anomaly"
+  | "over-pace"
+  | "under-pace";
+
+export interface SpendInsight {
+  id: string;
+  type: InsightType;
+  tone: "positive" | "warning" | "neutral";
+  categoryId: number | null;
+  categoryName: string | null;
+  /** Primary money figure (a delta, an excess, or a projection gap). */
+  amount: number | null;
+  percent: number | null;
+  merchant: string | null;
+}
+
+export interface BurndownPayload {
+  /** Cumulative spend by day for the current month, up to today. */
+  current: number[];
+  /** Cumulative spend by day across the whole prior month (the baseline curve). */
+  prior: number[];
+  totalDays: number;
+}
+
+export type InsightSection =
+  | "verdict"
+  | "cashFlow"
+  | "movers"
+  | "breakdown"
+  | "insights"
+  | "trend"
+  | "burndown"
+  | "recentTransactions"
+  | "needsAttention"
+  | "bankHealth";
+
+export interface InsightSectionError {
+  section: InsightSection;
   message: string;
 }
 
-export interface HomePayload {
-  thisMonth: HomeThisMonth | null;
+export interface InsightPayload {
+  verdict: Verdict | null;
   cashFlow: HomeCashFlow | null;
-  categorySnapshot: HomeCategorySnapshotItem[] | null;
-  historicalTrend: HomeHistoricalTrendPoint[] | null;
+  movers: Mover[] | null;
+  breakdown: BreakdownItem[] | null;
+  insights: SpendInsight[] | null;
+  trend: HomeHistoricalTrendPoint[] | null;
+  burndown: BurndownPayload | null;
   recentTransactions: HomeRecentTransaction[] | null;
-  topMerchants: HomeTopMerchant[] | null;
   needsAttention: HomeNeedsAttention | null;
   bankHealth: HomeBankHealthItem[] | null;
   nextScheduledSync: string | null;
-  errors: HomeSectionError[];
+  errors: InsightSectionError[];
 }
 
 export type SyncKind = "manual" | "scheduled";

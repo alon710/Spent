@@ -29,7 +29,7 @@ import {
 /**
  * The canonical category icon set. Keyed by the icon names seeded in the DB
  * migrations. Single source of truth so a category renders the same glyph on
- * the grid, the budget detail sheet, and the settings sheets. See design.md.
+ * the grid, the budget detail sheet, and the settings sheets. See docs/design-system.md.
  */
 export const CATEGORY_ICONS: Record<string, LucideIcon> = {
   "shopping-basket": ShoppingBasket,
